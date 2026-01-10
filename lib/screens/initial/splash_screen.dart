@@ -38,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Plant Disease Detector',
+              'Plant DD AI',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -47,12 +47,15 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Powered by MobileNetV2',
+              'Powered by MobileNetV2 • PlantVillage Dataset • TFLite On-Device',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.white70,
+                height: 1.4,
               ),
             ),
+
             const SizedBox(height: 48),
             const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),

@@ -2,6 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <key>NSCameraUsageDescription</key>
+    <string>We need access to your camera to take photos of plant leaves for disease detection.</string>
+
+    <!-- Photo Library Permission -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>We need access to your photo library to select images of plant leaves for disease detection.</string>
+
+    <!-- Photo Library Add Permission (iOS 11+) -->
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>We need permission to save analyzed plant images to your photo library.</string>
+
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

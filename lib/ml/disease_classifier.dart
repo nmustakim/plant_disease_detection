@@ -47,85 +47,108 @@ class DiseaseClassifier {
     try {
       AppLogger.info('Loading TFLite model from $modelPath...', 'DiseaseClassifier');
 
-      // Create interpreter with options for better compatibility
       final options = InterpreterOptions()
         ..threads = 4
-        ..useNnApiForAndroid = false;  // Disable NNAPI to avoid compatibility issues
+        ..useNnApiForAndroid = false;
 
-      // Load model from assets
       _interpreter = await Interpreter.fromAsset(
         modelPath,
         options: options,
       );
 
-      // Get model input/output info
-      final inputShape = _interpreter!.getInputTensor(0).shape;
-      final outputShape = _interpreter!.getOutputTensor(0).shape;
-      final inputType = _interpreter!.getInputTensor(0).type;
-      final outputType = _interpreter!.getOutputTensor(0).type;
+      // Get detailed model info
+      final inputTensor = _interpreter!.getInputTensor(0);
+      final outputTensor = _interpreter!.getOutputTensor(0);
 
       AppLogger.info('Model loaded successfully', 'DiseaseClassifier');
-      AppLogger.info('Input shape: $inputShape, type: $inputType', 'DiseaseClassifier');
-      AppLogger.info('Output shape: $outputShape, type: $outputType', 'DiseaseClassifier');
+      AppLogger.info('═══════════════════════════════════', 'DiseaseClassifier');
+      AppLogger.info('INPUT TENSOR INFO:', 'DiseaseClassifier');
+      AppLogger.info('  Shape: ${inputTensor.shape}', 'DiseaseClassifier');
+      AppLogger.info('  Type: ${inputTensor.type}', 'DiseaseClassifier');
+      AppLogger.info('  Name: ${inputTensor.name}', 'DiseaseClassifier');
+      AppLogger.info('OUTPUT TENSOR INFO:', 'DiseaseClassifier');
+      AppLogger.info('  Shape: ${outputTensor.shape}', 'DiseaseClassifier');
+      AppLogger.info('  Type: ${outputTensor.type}', 'DiseaseClassifier');
+      AppLogger.info('  Name: ${outputTensor.name}', 'DiseaseClassifier');
+      AppLogger.info('═══════════════════════════════════', 'DiseaseClassifier');
 
       return true;
     } catch (e, stackTrace) {
       AppLogger.error('Failed to load model', 'DiseaseClassifier', e);
-      print('Stack trace: $stackTrace'); // Debug info
+      print('Stack trace: $stackTrace');
       throw ModelException(
         ErrorCodes.errorMessages[ErrorCodes.modelLoadFailed]!,
         ErrorCodes.modelLoadFailed,
       );
     }
   }
-
   // Rest of your code stays the same...
   Future<List<double>> runInference(List<List<List<double>>> inputTensor) async {
     if (!isModelLoaded()) {
-      throw ModelException(
-        'Model not loaded',
-        ErrorCodes.modelNotFound,
-      );
+      throw ModelException('Model not loaded', ErrorCodes.modelNotFound);
     }
 
     try {
-      AppLogger.info('Running inference...', 'DiseaseClassifier');
-      final startTime = DateTime.now();
+      AppLogger.info('═══ INFERENCE DEBUG START ═══', 'DiseaseClassifier');
 
-      // Prepare input: [1, height, width, channels]
-      final input = [inputTensor];
+      // Get model expectations
+      final inputShape = _interpreter!.getInputTensor(0).shape;
+      final inputType = _interpreter!.getInputTensor(0).type;
+      final outputShape = _interpreter!.getOutputTensor(0).shape;
 
-      // Prepare output buffer: [1, numClasses]
-      final output = List.filled(1, List.filled(classNames.length, 0.0))
-          .map((e) => List<double>.from(e))
-          .toList();
+      AppLogger.info('Model expects: $inputShape ($inputType)', 'DiseaseClassifier');
+      AppLogger.info('Model outputs: $outputShape', 'DiseaseClassifier');
 
-      // Run inference
+      // Debug input tensor
+      AppLogger.info('Input tensor: [${inputTensor.length}][${inputTensor[0].length}][${inputTensor[0][0].length}]', 'DiseaseClassifier');
+      AppLogger.info('Sample pixels:', 'DiseaseClassifier');
+      AppLogger.info('  [0][0] = ${inputTensor[0][0]}', 'DiseaseClassifier');
+      AppLogger.info('  [112][112] = ${inputTensor[112][112]}', 'DiseaseClassifier');
+
+      // ⚠️ CRITICAL: Wrap in batch dimension
+      // TFLite expects [batch, height, width, channels]
+      final input = [inputTensor];  // This creates [1, 224, 224, 3]
+
+      AppLogger.info('Wrapped input shape: [1][${inputTensor.length}][${inputTensor[0].length}][${inputTensor[0][0].length}]', 'DiseaseClassifier');
+
+      final numClasses = outputShape[1];
+      final output = List.generate(1, (_) => List.filled(numClasses, 0.0));
+
+      AppLogger.info('Running model.run()...', 'DiseaseClassifier');
+      final inferenceStart = DateTime.now();
+
       _interpreter!.run(input, output);
 
-      // Extract probabilities from output
-      final probabilities = output[0];
+      final inferenceTime = DateTime.now().difference(inferenceStart).inMilliseconds;
+      AppLogger.info('Inference completed in ${inferenceTime}ms', 'DiseaseClassifier');
 
-      final duration = DateTime.now().difference(startTime).inMilliseconds;
-      AppLogger.performance('Inference', duration);
+      // Debug output
+      final scores = output[0];
+      AppLogger.info('Raw scores (${scores.length} classes):', 'DiseaseClassifier');
 
-      if (duration > AppConstants.maxInferenceTimeMillis) {
-        AppLogger.warning(
-          'Inference took ${duration}ms (exceeds ${AppConstants.maxInferenceTimeMillis}ms threshold)',
-          'DiseaseClassifier',
-        );
+      // Print all scores
+      for (int i = 0; i < scores.length; i++) {
+        if (scores[i] > 0.01) {  // Only print significant scores
+          AppLogger.info('  Class $i: ${(scores[i] * 100).toStringAsFixed(2)}%', 'DiseaseClassifier');
+        }
       }
 
-      return probabilities;
-    } catch (e) {
+      final sum = scores.reduce((a, b) => a + b);
+      final max = scores.reduce((a, b) => a > b ? a : b);
+      AppLogger.info('Sum: ${sum.toStringAsFixed(4)}, Max: ${(max * 100).toStringAsFixed(2)}%', 'DiseaseClassifier');
+      AppLogger.info('═══ INFERENCE DEBUG END ═══', 'DiseaseClassifier');
+
+      return scores;
+    } catch (e, stack) {
       AppLogger.error('Inference failed', 'DiseaseClassifier', e);
+      print('ERROR: $e');
+      print('STACK: $stack');
       throw ModelException(
         ErrorCodes.errorMessages[ErrorCodes.inferenceFailed]!,
         ErrorCodes.inferenceFailed,
       );
     }
   }
-
   ClassificationResult getTopPrediction(List<double> scores) {
     double maxConfidence = 0.0;
     int maxIndex = 0;

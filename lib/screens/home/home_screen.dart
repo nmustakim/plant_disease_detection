@@ -12,7 +12,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Plant Disease Detector'
+        title: const Text('Plant DD AI'
         ),
         actions: [
           IconButton(
