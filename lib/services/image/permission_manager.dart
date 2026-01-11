@@ -22,6 +22,11 @@ class PermissionManager {
         );
       } else if (status.isPermanentlyDenied) {
         AppLogger.warning('Camera permission permanently denied', 'PermissionManager');
+        // Open settings automatically
+        final opened = await openAppSettings();
+        if (opened) {
+          AppLogger.info('Opened app settings to allow user to grant camera permission', 'PermissionManager');
+        }
         throw PermissionException(
           'Camera permission is permanently denied. Please enable it in settings.',
           ErrorCodes.permCameraDenied,
@@ -43,25 +48,20 @@ class PermissionManager {
     try {
       PermissionStatus status;
 
-      // Handle different permissions based on platform and Android version
       if (Platform.isAndroid) {
         final androidInfo = await DeviceInfoPlugin().androidInfo;
 
         if (androidInfo.version.sdkInt >= 33) {
-          // Android 13+ (API 33+) - Use photos permission
           status = await Permission.photos.request();
           AppLogger.info('Requesting photos permission (Android 13+)', 'PermissionManager');
         } else {
-          // Android 12 and below - Use storage permission
           status = await Permission.storage.request();
           AppLogger.info('Requesting storage permission (Android 12 and below)', 'PermissionManager');
         }
       } else if (Platform.isIOS) {
-        // iOS - Use photos permission
         status = await Permission.photos.request();
         AppLogger.info('Requesting photos permission (iOS)', 'PermissionManager');
       } else {
-        // Other platforms
         status = await Permission.photos.request();
       }
 
@@ -76,6 +76,10 @@ class PermissionManager {
         );
       } else if (status.isPermanentlyDenied) {
         AppLogger.warning('Gallery permission permanently denied', 'PermissionManager');
+        final opened = await openAppSettings();
+        if (opened) {
+          AppLogger.info('Opened app settings to allow user to grant gallery permission', 'PermissionManager');
+        }
         throw PermissionException(
           'Gallery permission is permanently denied. Please enable it in settings.',
           ErrorCodes.permGalleryDenied,
@@ -92,6 +96,7 @@ class PermissionManager {
       );
     }
   }
+
 
   Future<bool> isCameraPermissionGranted() async {
     final status = await Permission.camera.status;
