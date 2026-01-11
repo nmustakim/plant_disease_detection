@@ -5,7 +5,7 @@ class AppConstants {
 
   static const String modelFileName = 'plant_disease_model.tflite';
   static const String modelAssetPath = 'assets/models/$modelFileName';
-  static const int modelInputSize = 380;
+  static const int modelInputSize = 224;
   static const int modelChannels = 3; 
   static const double confidenceThreshold = 0.60;
 
