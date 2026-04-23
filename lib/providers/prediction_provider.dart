@@ -1,102 +1,69 @@
-import 'package:flutter/foundation.dart';
+
+
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import '../controllers/prediction_controller.dart';
-import '../data/models/prediction.dart';
-import '../data/models/disease_info.dart';
 
-enum PredictionState {
-  idle,
-  capturingImage,
-  selectingImage,
-  preprocessing,
-  classifying,
-  saving,
-  success,
-  error,
-}
-
+enum PredictionState { idle, loading, success, error }
 
 class PredictionProvider extends ChangeNotifier {
   final PredictionController _controller;
 
-  PredictionState _state = PredictionState.idle;
-  Prediction? _currentPrediction;
-  DiseaseInfo? _currentDiseaseInfo;
-  String? _errorMessage;
-  File? _selectedImage;
+  PredictionState   state        = PredictionState.idle;
+  PredictionResult? latestResult;
+  String?           errorMessage;
 
   PredictionProvider(this._controller);
 
-  PredictionState get state => _state;
-  Prediction? get currentPrediction => _currentPrediction;
-  DiseaseInfo? get currentDiseaseInfo => _currentDiseaseInfo;
-  String? get errorMessage => _errorMessage;
-  File? get selectedImage => _selectedImage;
+  bool get isProcessing => state == PredictionState.loading;
 
-  bool get isLoading => _state == PredictionState.capturingImage ||
-      _state == PredictionState.selectingImage ||
-      _state == PredictionState.preprocessing ||
-      _state == PredictionState.classifying ||
-      _state == PredictionState.saving;
 
-  bool get hasError => _state == PredictionState.error;
-  bool get hasResult => _state == PredictionState.success && _currentPrediction != null;
-
-  Future<void> captureAndClassify() async {
+  Future<void> captureFromCamera() async {
+    _setLoading();
     try {
-      _setState(PredictionState.capturingImage);
-      _errorMessage = null;
-
-      final result = await _controller.captureAndClassify();
-
-      if (result.success) {
-        _currentPrediction = result.prediction;
-        _currentDiseaseInfo = result.diseaseInfo;
-        _selectedImage = File(result.prediction.imagePath);
-        _setState(PredictionState.success);
-      } else {
-        _errorMessage = result.errorMessage ?? 'Failed to classify image';
-        _setState(PredictionState.error);
-      }
+      final file = await _controller.startCapture();
+      await _runInference(file);
     } catch (e) {
-      _errorMessage = e.toString();
-      _setState(PredictionState.error);
+      _setError(e.toString());
     }
   }
 
-  Future<void> uploadAndClassify() async {
+  Future<void> uploadFromGallery() async {
+    _setLoading();
     try {
-      _setState(PredictionState.selectingImage);
-      _errorMessage = null;
-
-      final result = await _controller.uploadAndClassify();
-
-      if (result.success) {
-        _currentPrediction = result.prediction;
-        _currentDiseaseInfo = result.diseaseInfo;
-        _selectedImage = File(result.prediction.imagePath);
-        _setState(PredictionState.success);
-      } else {
-        _errorMessage = result.errorMessage ?? 'Failed to classify image';
-        _setState(PredictionState.error);
-      }
+      final file = await _controller.startGalleryUpload();
+      await _runInference(file);
     } catch (e) {
-      _errorMessage = e.toString();
-      _setState(PredictionState.error);
+      _setError(e.toString());
+    }
+  }
+
+  Future<void> _runInference(File file) async {
+    try {
+      latestResult = await _controller.runInference(file);
+      state        = PredictionState.success;
+      notifyListeners();
+    } catch (e) {
+      _setError(e.toString());
     }
   }
 
   void reset() {
-    _state = PredictionState.idle;
-    _currentPrediction = null;
-    _currentDiseaseInfo = null;
-    _errorMessage = null;
-    _selectedImage = null;
+    state        = PredictionState.idle;
+    latestResult = null;
+    errorMessage = null;
     notifyListeners();
   }
 
-  void _setState(PredictionState newState) {
-    _state = newState;
+  void _setLoading() {
+    state        = PredictionState.loading;
+    errorMessage = null;
+    notifyListeners();
+  }
+
+  void _setError(String msg) {
+    state        = PredictionState.error;
+    errorMessage = msg;
     notifyListeners();
   }
 }

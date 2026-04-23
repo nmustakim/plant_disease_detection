@@ -1,35 +1,32 @@
+
 import 'dart:io';
-import '../services/image/image_processor.dart';
+import 'package:uuid/uuid.dart';
 import '../services/image/image_service.dart';
+import '../services/image/image_preprocessor.dart';
+import '../services/file/file_manager.dart';
 import '../ml/disease_classifier.dart';
 import '../data/database/database_manager.dart';
+import '../data/database/daos/predictions_dao.dart';
+import '../data/database/daos/disease_info_dao.dart';
 import '../data/models/prediction.dart';
 import '../data/models/disease_info.dart';
 import '../core/errors/error_handler.dart';
-import '../core/utils/logger.dart';
+import '../core/errors/app_error.dart';
 import '../core/constants/app_constants.dart';
-
-class PredictionResult {
-  final Prediction prediction;
-  final DiseaseInfo? diseaseInfo;
-  final bool success;
-  final String? errorMessage;
-
-  PredictionResult({
-    required this.prediction,
-    this.diseaseInfo,
-    this.success = true,
-    this.errorMessage,
-  });
-}
-
+import '../core/utils/logger.dart';
 
 class PredictionController {
-  final ImageService imageService;
+  final ImageService      imageService;
   final ImagePreprocessor preprocessor;
   final DiseaseClassifier mlModel;
-  final DatabaseManager database;
-  final ErrorHandler errorHandler;
+  final DatabaseManager   database;
+  final ErrorHandler      errorHandler;
+
+  final FileManager _fileManager = FileManager();
+  final _uuid = const Uuid();
+
+  late final PredictionsDao _pDao = PredictionsDao(database);
+  late final DiseaseInfoDao  _dDao = DiseaseInfoDao(database);
 
   PredictionController({
     required this.imageService,
@@ -39,110 +36,72 @@ class PredictionController {
     required this.errorHandler,
   });
 
-  Future<PredictionResult> captureAndClassify() async {
+
+  Future<File> startCapture()       async => imageService.captureImage();
+  Future<File> startGalleryUpload() async => imageService.selectImage();
+
+  Future<bool> validateImage(File imageFile) =>
+      _fileManager.validateImage(imageFile).then((_) => true);
+
+
+  Future<PredictionResult> runInference(File imageFile) async {
     try {
-      AppLogger.info('Starting capture and classify workflow', 'PredictionController');
+      final tensor = preprocessor.preprocessImage(imageFile);
 
-      // Step 1-4: Capture image
-      final imageFile = await imageService.captureImage();
+      final result = await Future.any([
+        Future(() => mlModel.classify(tensor)),
+        Future.delayed(
+          const Duration(milliseconds: AppConstants.inferenceTimeoutMs),
+          () => throw AppError(
+            code: AppErrorCode.inferenceTimeout,
+            message: 'Inference took >2 seconds.',
+          ),
+        ),
+      ]);
 
-      // Continue with classification
-      return await classifyImage(imageFile);
-    } catch (e, stackTrace) {
-      AppLogger.error('Capture and classify failed', 'PredictionController', e, stackTrace);
-      return PredictionResult(
-        prediction: _createErrorPrediction(),
-        success: false,
-        errorMessage: e.toString(),
-      );
-    }
-  }
-
-  Future<PredictionResult> uploadAndClassify() async {
-    try {
-      AppLogger.info('Starting upload and classify workflow', 'PredictionController');
-
-      // Select image from gallery
-      final imageFile = await imageService.selectImage();
-
-      // Continue with classification
-      return await classifyImage(imageFile);
-    } catch (e, stackTrace) {
-      AppLogger.error('Upload and classify failed', 'PredictionController', e, stackTrace);
-      return PredictionResult(
-        prediction: _createErrorPrediction(),
-        success: false,
-        errorMessage: e.toString(),
-      );
-    }
-  }
-
-
-  Future<PredictionResult> classifyImage(File imageFile) async {
-    try {
-      // Step 5: Preprocess image
-      final tensor = await preprocessor.preprocessImage(imageFile);
-
-      // Step 6: Ensure model is loaded
-      if (!mlModel.isModelLoaded()) {
-        await mlModel.loadModel();
-      }
-
-      // Step 7: Run inference
-      final scores = await mlModel.runInference(tensor);
-
-      // Step 8: Get top prediction
-      final classResult = mlModel.getTopPrediction(scores);
-
-      // Step 8b: Retrieve disease info from database
       DiseaseInfo? diseaseInfo;
-      String diseaseId = 'unknown_001';
-
-      if (classResult.className != 'Unknown') {
-        diseaseInfo = await database.getDiseaseInfo(classResult.className);
-        if (diseaseInfo != null) {
-          diseaseId = diseaseInfo.diseaseId;
-        }
+      if (!result.isUnknown) {
+        diseaseInfo = await _dDao.getByName(result.diseaseName);
       }
 
-      // Create prediction record
+      final predictionId = _uuid.v4();
+      final savedPath    = await _fileManager.saveImage(imageFile, predictionId);
+
       final prediction = Prediction(
-        diseaseId: diseaseId,
-        diseaseName: classResult.className,
-        confidence: classResult.confidence,
-        imagePath: imageFile.path,
-        modelVersion: AppConstants.appVersion,
+        id:           predictionId,
+        diseaseId:    diseaseInfo?.diseaseId ?? 'unknown',
+        diseaseName:  result.diseaseName,
+        confidence:   result.confidence,
+        timestamp:    DateTime.now(),
+        imagePath:    savedPath,
+        modelVersion: AppConstants.modelVersion,
+      );
+      await _pDao.insert(prediction);
+
+      AppLogger.info(
+        'Inference complete: ${result.diseaseName} '
+        '(${result.confidence.toStringAsFixed(2)})',
+        'PredictionController',
       );
 
-      // Step 9: Save to database
-      final savedPath = await imageService.saveImage(imageFile, prediction.id);
-      final updatedPrediction = prediction.copyWith(imagePath: savedPath);
-      await database.savePrediction(updatedPrediction);
-
-      AppLogger.info('Prediction saved: ${prediction.id}', 'PredictionController');
-
-      return PredictionResult(
-        prediction: updatedPrediction,
-        diseaseInfo: diseaseInfo,
-        success: true,
+      return PredictionResult(prediction: prediction, diseaseInfo: diseaseInfo);
+    } on AppError catch (e) {
+      await errorHandler.handleError(e, userAction: 'runInference');
+      rethrow;
+    } catch (e) {
+      final err = AppError(
+        code: AppErrorCode.inferenceFailed,
+        message: 'Unexpected error during inference.',
+        originalError: e,
       );
-    } catch (e, stackTrace) {
-      AppLogger.error('Classification failed', 'PredictionController', e, stackTrace);
-      return PredictionResult(
-        prediction: _createErrorPrediction(),
-        success: false,
-        errorMessage: e.toString(),
-      );
+      await errorHandler.handleError(err);
+      throw err;
     }
   }
+}
 
-  Prediction _createErrorPrediction() {
-    return Prediction(
-      diseaseId: 'error_001',
-      diseaseName: 'Error',
-      confidence: 0.0,
-      imagePath: '',
-      modelVersion: AppConstants.appVersion,
-    );
-  }
+class PredictionResult {
+  final Prediction   prediction;
+  final DiseaseInfo? diseaseInfo;
+  const PredictionResult({required this.prediction, this.diseaseInfo});
 }

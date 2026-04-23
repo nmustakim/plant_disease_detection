@@ -1,7 +1,7 @@
 name: plant_dd_ai
 description: Smartphone-Based Plant Disease Detection Using Transfer-Learned MobileNetV2
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+1
 
 environment:
   sdk: '>=3.9.0 <4.0.0'
@@ -13,10 +13,9 @@ dependencies:
   provider: ^6.1.5
 
   image_picker: ^1.2.0
+  opencv_dart: ^1.4.3
 
-  tflite_flutter: ^0.12.1
-
-  opencv_dart: ^2.1.0
+  tflite_flutter: ^0.11.0
 
   path_provider: ^2.1.5
   sqflite: ^2.4.2
@@ -27,19 +26,22 @@ dependencies:
   firebase_auth: ^6.1.1
 
   uuid: ^4.5.1
+  url_launcher: ^6.3.0
+  image: ^4.1.7
+  path: ^1.9.0
   intl: ^0.20.2
   shared_preferences: ^2.3.3
-  permission_handler: ^12.0.1
+  permission_handler: ^11.3.1
 
   flutter_localizations:
     sdk: flutter
-  device_info_plus: ^12.3.0
-  image: ^4.7.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.9
 
 flutter:
   uses-material-design: true

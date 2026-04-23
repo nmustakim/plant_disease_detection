@@ -1,33 +1,41 @@
 
+
 class AppSettings {
-  final String settingKey;
-  final String settingValue;
-  final int updatedAt;
+  final String language;
+  final String modelVersion;
+  final double confidenceThreshold;
+  final int    lastSync;
 
-  AppSettings({
-    required this.settingKey,
-    required this.settingValue,
-    int? updatedAt,
-  }) : updatedAt = updatedAt ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  const AppSettings({
+    this.language             = 'en',
+    this.modelVersion         = '1.0',
+    this.confidenceThreshold  = 0.60,
+    this.lastSync             = 0,
+  });
 
-  Map<String, dynamic> toMap() {
-    return {
-      'setting_key': settingKey,
-      'setting_value': settingValue,
-      'updated_at': updatedAt,
-    };
-  }
+  AppSettings copyWith({
+    String? language,
+    String? modelVersion,
+    double? confidenceThreshold,
+    int?    lastSync,
+  }) => AppSettings(
+    language:            language            ?? this.language,
+    modelVersion:        modelVersion        ?? this.modelVersion,
+    confidenceThreshold: confidenceThreshold ?? this.confidenceThreshold,
+    lastSync:            lastSync            ?? this.lastSync,
+  );
 
-  factory AppSettings.fromMap(Map<String, dynamic> map) {
-    return AppSettings(
-      settingKey: map['setting_key'] as String,
-      settingValue: map['setting_value'] as String,
-      updatedAt: map['updated_at'] as int,
-    );
-  }
+  Map<String, String> toSettingsRows() => {
+    'language':             language,
+    'model_version':        modelVersion,
+    'confidence_threshold': confidenceThreshold.toString(),
+    'last_sync':            lastSync.toString(),
+  };
 
-  @override
-  String toString() {
-    return 'AppSettings(key: $settingKey, value: $settingValue)';
-  }
+  factory AppSettings.fromRows(Map<String, String> rows) => AppSettings(
+    language:            rows['language']             ?? 'en',
+    modelVersion:        rows['model_version']        ?? '1.0',
+    confidenceThreshold: double.tryParse(rows['confidence_threshold'] ?? '') ?? 0.60,
+    lastSync:            int.tryParse(rows['last_sync'] ?? '')               ?? 0,
+  );
 }

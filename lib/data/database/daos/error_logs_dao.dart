@@ -1,69 +1,31 @@
-import '../../models/error_log.dart';
-import '../database_helper.dart';
-import '../../../core/utils/logger.dart';
+// lib/data/database/daos/error_logs_dao.dart
+// IT402 §4.2.5 – error_logs table DAO
+
+import '../database_manager.dart';
 
 class ErrorLogsDao {
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final DatabaseManager _db;
+  ErrorLogsDao(this._db);
 
-  Future<int> insert(ErrorLog errorLog) async {
-    try {
-      final db = await _dbHelper.database;
-      final id = await db.insert('error_logs', errorLog.toMap());
-      return id;
-    } catch (e) {
-      AppLogger.error('Failed to insert error log', 'ErrorLogsDao', e);
-      rethrow;
-    }
-  }
-
-  Future<List<ErrorLog>> getAll({int? limit}) async {
-    try {
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.query(
-        'error_logs',
-        orderBy: 'timestamp DESC',
-        limit: limit,
-      );
-
-      return List.generate(maps.length, (i) => ErrorLog.fromMap(maps[i]));
-    } catch (e) {
-      AppLogger.error('Failed to get error logs', 'ErrorLogsDao', e);
-      rethrow;
-    }
-  }
-
-  Future<bool> markResolved(int errorId) async {
-    try {
-      final db = await _dbHelper.database;
-      final count = await db.update(
-        'error_logs',
-        {'resolved': 1},
-        where: 'error_id = ?',
-        whereArgs: [errorId],
-      );
-      return count > 0;
-    } catch (e) {
-      AppLogger.error('Failed to mark error as resolved', 'ErrorLogsDao', e);
-      rethrow;
-    }
-  }
-
-  Future<int> deleteOld(int daysOld) async {
-    try {
-      final db = await _dbHelper.database;
-      final cutoffTimestamp = DateTime.now()
-          .subtract(Duration(days: daysOld))
-          .millisecondsSinceEpoch ~/ 1000;
-
-      final count = await db.delete(
-        'error_logs',
-        where: 'timestamp < ?',
-        whereArgs: [cutoffTimestamp],
-      );
-      return count;
-    } catch (e) {
-      AppLogger.error('Failed to delete old error logs', 'ErrorLogsDao', e);
-      rethrow;
-    }
+  Future<void> insertErrorLog({
+    required String errorCode,
+    required String errorMessage,
+    required String errorType,
+    required String severity,
+    String? predictionId,
+    String? userAction,
+    String? deviceInfo,
+  }) async {
+    await _db.insert('error_logs', {
+      'error_code':    errorCode,
+      'error_message': errorMessage,
+      'error_type':    errorType,
+      'prediction_id': predictionId,
+      'timestamp':     DateTime.now().millisecondsSinceEpoch,
+      'user_action':   userAction,
+      'device_info':   deviceInfo,
+      'severity':      severity,
+      'resolved':      0,
+    });
   }
 }

@@ -1,88 +1,76 @@
-import '../../data/database/daos/error_logs_dao.dart';
-import '../constants/error_codes.dart';
 
 import '../utils/logger.dart';
-import '../../data/models/error_log.dart';
-
+import 'app_error.dart';
+import '../../data/database/daos/error_logs_dao.dart';
 
 class ErrorHandler {
-  final ErrorLogsDao _errorLogsDao;
+  final ErrorLogsDao _dao;
+  ErrorHandler(this._dao);
 
-  ErrorHandler(this._errorLogsDao);
-
-  Future<ErrorMessage> handleError(
-      String errorCode, {
-        String? predictionId,
-        String? userAction,
-        String? deviceInfo,
-        dynamic originalError,
-        StackTrace? stackTrace,
-      }) async {
-    final errorType = ErrorCodes.getErrorType(errorCode);
-    final message = ErrorCodes.errorMessages[errorCode] ?? 'Unknown error occurred';
-    final recovery = ErrorCodes.recoveryActions[errorCode] ?? 'Please try again';
-
-    ErrorSeverity severity = ErrorSeverity.error;
-    if (errorCode == ErrorCodes.confidenceBelowThreshold) {
-      severity = ErrorSeverity.warning;
-    } else if (errorCode == ErrorCodes.modelLoadFailed ||
-        errorCode == ErrorCodes.dbCorrupt) {
-      severity = ErrorSeverity.critical;
-    }
-
-    AppLogger.error(
-      message,
-      errorType.toString(),
-      originalError,
-      stackTrace,
-    );
-
+  Future<void> handleError(AppError error, {String? userAction}) async {
+    AppLogger.error(error.message, 'ErrorHandler', error.originalError);
     try {
-      final errorLog = ErrorLog(
-        errorId: null, // Auto-increment
-        errorCode: errorCode,
-        errorMessage: message,
-        errorType: errorType,
-        predictionId: predictionId,
-        timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        userAction: userAction,
-        deviceInfo: deviceInfo,
-        severity: severity,
-        resolved: false,
+      await _dao.insertErrorLog(
+        errorCode:    error.code.name.toUpperCase(),
+        errorMessage: error.message,
+        errorType:    _typeForCode(error.code),
+        severity:     _severityForCode(error.code),
+        userAction:   userAction,
       );
-
-      await _errorLogsDao.insert(errorLog);
-    } catch (e) {
-      AppLogger.error('Failed to log error to database', 'ErrorHandler', e);
+    } catch (_) {
     }
-
-    return ErrorMessage(
-      code: errorCode,
-      message: message,
-      recovery: recovery,
-      severity: severity,
-    );
   }
 
-  String getUserFriendlyMessage(String errorCode) {
-    return ErrorCodes.errorMessages[errorCode] ?? 'An unexpected error occurred';
+  String userFriendlyMessage(AppErrorCode code) {
+    switch (code) {
+      case AppErrorCode.permCameraDenied:
+        return 'Camera permission denied. Please allow access in Settings.';
+      case AppErrorCode.permGalleryDenied:
+        return 'Gallery permission denied. Please allow access in Settings.';
+      case AppErrorCode.imgInvalidFormat:
+        return 'Image format not supported. Please use JPG or PNG.';
+      case AppErrorCode.imgFileTooLarge:
+        return 'Image exceeds 10 MB limit. Please compress and retry.';
+      case AppErrorCode.imgCorrupt:
+        return 'Image file is corrupted. Please try again.';
+      case AppErrorCode.modelNotFound:
+        return 'Model file missing. Please reinstall the app.';
+      case AppErrorCode.modelLoadFailed:
+        return 'Failed to load model. Clear cache and restart the app.';
+      case AppErrorCode.inferenceFailed:
+        return 'Classification failed. Please restart the app.';
+      case AppErrorCode.inferenceTimeout:
+        return 'Classification took too long. Please retry.';
+      case AppErrorCode.dbInsertFailed:
+        return 'Failed to save prediction. Please retry.';
+      case AppErrorCode.confidenceBelowThreshold:
+        return 'Could not identify disease. Try a clearer photo in better light.';
+      default:
+        return 'An unexpected error occurred. Please try again.';
+    }
   }
 
-  String getRecoveryAction(String errorCode) {
-    return ErrorCodes.recoveryActions[errorCode] ?? 'Please try again';
+  String _typeForCode(AppErrorCode code) {
+    if (code.name.startsWith('perm'))       return 'Permission';
+    if (code.name.startsWith('img'))        return 'Validation';
+    if (code.name.startsWith('model') ||
+        code.name.startsWith('inference'))  return 'Model';
+    if (code.name.startsWith('db'))         return 'Database';
+    if (code.name.startsWith('network'))    return 'Network';
+    return 'Unknown';
   }
-}
 
-class ErrorMessage {
-  final String code;
-  final String message;
-  final String recovery;
-  final ErrorSeverity severity;
-
-  ErrorMessage({
-    required this.code,
-    required this.message,
-    required this.recovery,
-    required this.severity,
-  });
+  String _severityForCode(AppErrorCode code) {
+    switch (code) {
+      case AppErrorCode.modelNotFound:
+      case AppErrorCode.modelLoadFailed:
+      case AppErrorCode.inferenceFailed:
+        return 'ERROR';
+      case AppErrorCode.inferenceTimeout:
+      case AppErrorCode.dbInsertFailed:
+        return 'WARNING';
+      default:
+        return 'INFO';
+    }
+  }
 }

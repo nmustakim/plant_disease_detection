@@ -1,144 +1,65 @@
-import 'package:sqflite/sqflite.dart';
-import '../../models/prediction.dart';
-import '../database_helper.dart';
-import '../../../core/utils/logger.dart';
+// lib/data/database/daos/predictions_dao.dart
+// IT402 §3.3 – PredictionsDAO | implements IT402 §5.3.2 queries
 
+import '../database_manager.dart';
+import '../../models/prediction.dart';
 
 class PredictionsDao {
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final DatabaseManager _db;
+  PredictionsDao(this._db);
 
+  /// Save a new prediction – IT402 §5.3.1 step 7
   Future<String> insert(Prediction prediction) async {
-    try {
-      final db = await _dbHelper.database;
-      await db.insert(
-        'predictions',
-        prediction.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-      AppLogger.info('Prediction inserted: ${prediction.id}', 'PredictionsDao');
-      return prediction.id;
-    } catch (e) {
-      AppLogger.error('Failed to insert prediction', 'PredictionsDao', e);
-      rethrow;
-    }
+    await _db.insert('predictions', prediction.toMap());
+    return prediction.id;
   }
 
+  /// IT402 §5.3.2 Query 1 – LEFT JOIN so Unknown predictions still appear.
+  /// COALESCE falls back to p.disease_id when no disease_info row exists.
   Future<List<Prediction>> getAll() async {
-    try {
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.rawQuery('''
-        SELECT 
-          p.*,
-          d.disease_name
-        FROM predictions p
-        LEFT JOIN disease_info d ON p.disease_id = d.disease_id
-        ORDER BY p.timestamp DESC
-      ''');
-
-      return List.generate(maps.length, (i) => Prediction.fromMap(maps[i]));
-    } catch (e) {
-      AppLogger.error('Failed to get all predictions', 'PredictionsDao', e);
-      rethrow;
-    }
+    final rows = await _db.rawQuery('''
+      SELECT p.id, p.disease_id, p.confidence, p.timestamp,
+             p.image_path, p.model_version, p.device_id,
+             COALESCE(d.disease_name, p.disease_id) AS disease_name
+      FROM predictions p
+      LEFT JOIN disease_info d ON p.disease_id = d.disease_id
+      ORDER BY p.timestamp DESC
+    ''');
+    return rows.map(Prediction.fromMap).toList();
   }
 
   Future<Prediction?> getById(String id) async {
-    try {
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.rawQuery('''
-        SELECT 
-          p.*,
-          d.disease_name
-        FROM predictions p
-        LEFT JOIN disease_info d ON p.disease_id = d.disease_id
-        WHERE p.id = ?
-      ''', [id]);
-
-      if (maps.isEmpty) return null;
-      return Prediction.fromMap(maps.first);
-    } catch (e) {
-      AppLogger.error('Failed to get prediction by ID', 'PredictionsDao', e);
-      rethrow;
-    }
+    final rows = await _db.rawQuery('''
+      SELECT p.*,
+             COALESCE(d.disease_name, p.disease_id) AS disease_name
+      FROM predictions p
+      LEFT JOIN disease_info d ON p.disease_id = d.disease_id
+      WHERE p.id = ?
+    ''', [id]);
+    if (rows.isEmpty) return null;
+    return Prediction.fromMap(rows.first);
   }
 
-  Future<List<Prediction>> getByDiseaseId(String diseaseId) async {
-    try {
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.rawQuery('''
-        SELECT 
-          p.*,
-          d.disease_name
-        FROM predictions p
-        LEFT JOIN disease_info d ON p.disease_id = d.disease_id
-        WHERE p.disease_id = ?
-        ORDER BY p.timestamp DESC
-      ''', [diseaseId]);
+  Future<int> delete(String id) async =>
+      _db.delete('predictions', where: 'id = ?', whereArgs: [id]);
 
-      return List.generate(maps.length, (i) => Prediction.fromMap(maps[i]));
-    } catch (e) {
-      AppLogger.error('Failed to get predictions by disease ID', 'PredictionsDao', e);
-      rethrow;
-    }
-  }
+  Future<int> deleteAll() async =>
+      _db.delete('predictions', where: '1', whereArgs: []);
 
-  Future<List<Prediction>> getRecent(int limit) async {
-    try {
-      final db = await _dbHelper.database;
-      final List<Map<String, dynamic>> maps = await db.rawQuery('''
-        SELECT 
-          p.*,
-          d.disease_name
-        FROM predictions p
-        LEFT JOIN disease_info d ON p.disease_id = d.disease_id
-        ORDER BY p.timestamp DESC
-        LIMIT ?
-      ''', [limit]);
-
-      return List.generate(maps.length, (i) => Prediction.fromMap(maps[i]));
-    } catch (e) {
-      AppLogger.error('Failed to get recent predictions', 'PredictionsDao', e);
-      rethrow;
-    }
-  }
-
-  Future<bool> delete(String id) async {
-    try {
-      final db = await _dbHelper.database;
-      final count = await db.delete(
-        'predictions',
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      AppLogger.info('Prediction deleted: $id', 'PredictionsDao');
-      return count > 0;
-    } catch (e) {
-      AppLogger.error('Failed to delete prediction', 'PredictionsDao', e);
-      rethrow;
-    }
-  }
-
-  /// Delete all predictions
-  Future<int> deleteAll() async {
-    try {
-      final db = await _dbHelper.database;
-      final count = await db.delete('predictions');
-      AppLogger.info('All predictions deleted: $count records', 'PredictionsDao');
-      return count;
-    } catch (e) {
-      AppLogger.error('Failed to delete all predictions', 'PredictionsDao', e);
-      rethrow;
-    }
-  }
-
-  Future<int> getCount() async {
-    try {
-      final db = await _dbHelper.database;
-      final result = await db.rawQuery('SELECT COUNT(*) as count FROM predictions');
-      return Sqflite.firstIntValue(result) ?? 0;
-    } catch (e) {
-      AppLogger.error('Failed to get prediction count', 'PredictionsDao', e);
-      rethrow;
-    }
+  /// IT402 §5.3.2 Query 2 – accuracy stats per disease
+  Future<List<Map<String, dynamic>>> getAccuracyStats() async {
+    return _db.rawQuery('''
+      SELECT p.disease_id,
+             COUNT(*) AS total_predictions,
+             SUM(CASE WHEN f.user_feedback = 'Correct' THEN 1 ELSE 0 END) AS correct_count,
+             AVG(p.confidence) AS avg_confidence,
+             ROUND(100.0 *
+               SUM(CASE WHEN f.user_feedback = 'Correct' THEN 1 ELSE 0 END)
+               / COUNT(*), 2) AS accuracy_pct
+      FROM predictions p
+      LEFT JOIN feedback f ON p.id = f.prediction_id
+      GROUP BY p.disease_id
+      ORDER BY total_predictions DESC
+    ''');
   }
 }
