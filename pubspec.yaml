@@ -35,6 +35,7 @@ dependencies:
 
   flutter_localizations:
     sdk: flutter
+  device_info_plus: ^13.1.0
 
 dev_dependencies:
   flutter_test:
