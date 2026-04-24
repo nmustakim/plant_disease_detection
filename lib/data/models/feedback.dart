@@ -30,10 +30,10 @@ enum UserFeedback {
 
 
 class Feedback {
-  final int? feedbackId; // Auto-increment PK
-  final String predictionId; // FK to predictions
+  final int? feedbackId;
+  final String predictionId;
   final UserFeedback userFeedback;
-  final String? correctDiseaseName; // If incorrect
+  final String? correctDiseaseName;
   final String? comments;
   final int timestamp;
 

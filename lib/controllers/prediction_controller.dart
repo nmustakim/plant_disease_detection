@@ -80,21 +80,16 @@ class PredictionController {
 
   Future<PredictionResult> classifyImage(File imageFile) async {
     try {
-      // Step 5: Preprocess image
       final tensor = await preprocessor.preprocessImage(imageFile);
 
-      // Step 6: Ensure model is loaded
       if (!mlModel.isModelLoaded()) {
         await mlModel.loadModel();
       }
 
-      // Step 7: Run inference
       final scores = await mlModel.runInference(tensor);
 
-      // Step 8: Get top prediction
       final classResult = mlModel.getTopPrediction(scores);
 
-      // Step 8b: Retrieve disease info from database
       DiseaseInfo? diseaseInfo;
       String diseaseId = 'unknown_001';
 
