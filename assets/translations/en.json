@@ -1,0 +1,110 @@
+{
+  "app_name": "Plant DD AI",
+  "app_tagline": "AI-Powered Plant Disease Detection",
+
+  "home": {
+    "title": "Detect Plant Diseases",
+    "subtitle": "Take a photo or upload an image to identify plant diseases instantly with AI",
+    "scan_leaf": "Scan Leaf",
+    "scan_leaf_subtitle": "Capture image with camera",
+    "gallery": "Gallery",
+    "history": "History",
+    "how_it_works": "How it works",
+    "step_capture": "Capture or upload plant leaf image",
+    "step_analyze": "AI analyzes for disease detection",
+    "step_result": "Get instant diagnosis & treatment"
+  },
+
+  "result": {
+    "title": "Detection Result",
+    "confidence": "Confidence",
+    "high_confidence": "High",
+    "medium_confidence": "Medium",
+    "low_confidence": "Low",
+    "disease_details": "Disease Details",
+    "treatment_options": "Treatment Options",
+    "cultural_control": "Cultural Control",
+    "chemical_control": "Chemical Control",
+    "biological_control": "Biological Control",
+    "symptoms": "Symptoms",
+    "severity": "Severity",
+    "affected_crops": "Affected Crops",
+    "learn_more": "Learn More",
+    "save_result": "Save Result",
+    "try_another": "Try Another",
+    "unknown": "Unknown",
+    "unknown_tip": "Low confidence. Try retaking the photo in better lighting."
+  },
+
+  "history": {
+    "title": "Prediction History",
+    "empty_message": "No predictions yet",
+    "empty_subtitle": "Scan a leaf to get started",
+    "clear_all": "Clear All",
+    "delete_confirm_title": "Delete Prediction",
+    "delete_confirm_message": "Are you sure you want to delete this prediction?",
+    "clear_all_confirm_title": "Clear All Predictions",
+    "clear_all_confirm_message": "This will permanently delete all your prediction history.",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+
+  "settings": {
+    "title": "Settings",
+    "app_information": "App Information",
+    "version": "Version",
+    "model_version": "Model Version",
+    "preferences": "Preferences",
+    "language": "Language",
+    "confidence_threshold": "Confidence Threshold",
+    "data_storage": "Data & Storage",
+    "clear_cache": "Clear Cache",
+    "clear_cache_subtitle": "Free up storage space",
+    "clear_cache_confirm": "This will clear temporary files and free up storage space. Your prediction history will not be affected.",
+    "cache_cleared": "Cache cleared successfully",
+    "about": "About",
+    "help_faq": "Help & FAQ",
+    "rate_app": "Rate App",
+    "built_with": "Built with Flutter & TensorFlow Lite",
+    "check_updates": "Check for Updates",
+    "last_sync": "Last Sync"
+  },
+
+  "permissions": {
+    "camera_denied": "Camera permission denied",
+    "camera_denied_message": "Camera access is required to scan leaves. Please enable it in Settings.",
+    "gallery_denied": "Gallery permission denied",
+    "gallery_denied_message": "Gallery access is required to upload images. Please enable it in Settings.",
+    "open_settings": "Open Settings"
+  },
+
+  "errors": {
+    "general": "An unexpected error occurred",
+    "image_format": "Image format not supported. Please use JPG or PNG.",
+    "image_size": "Image exceeds 10MB limit. Please compress and try again.",
+    "model_load": "Failed to load AI model. Please restart the app.",
+    "inference_failed": "Analysis failed. Please try again.",
+    "db_failed": "Failed to save result. Please try again.",
+    "retry": "Retry",
+    "ok": "OK"
+  },
+
+  "feedback": {
+    "title": "Was this correct?",
+    "correct": "Correct",
+    "incorrect": "Incorrect",
+    "unsure": "Unsure",
+    "correct_disease": "What is the correct disease?",
+    "comments": "Additional comments (optional)",
+    "submit": "Submit",
+    "thank_you": "Thank you for your feedback!"
+  },
+
+  "splash": {
+    "loading": "Loading AI Model...",
+    "tagline": "Powered by MobileNetV2"
+  },
+
+  "disclaimer": "AI-based predictions are for advisory purposes only. Always consult a qualified agronomist before applying treatments."
+}
