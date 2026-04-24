@@ -121,6 +121,41 @@ class FeedbackDao {
       rethrow;
     }
   }
+
+
+
+
+  Future<List<Feedback>> getUnsyncedFeedback() async {
+    try {
+      final db = await _dbHelper.database;
+      final List<Map<String, dynamic>> maps = await db.query(
+        'feedback',
+        where: 'is_synced = 0',
+        orderBy: 'timestamp ASC',
+      );
+
+      return List.generate(maps.length, (i) => Feedback.fromMap(maps[i]));
+    } catch (e) {
+      AppLogger.error('Failed to get unsynced feedback', 'FeedbackDao', e);
+      return [];
+    }
+  }
+
+  Future<bool> markAsSynced(int feedbackId) async {
+    try {
+      final db = await _dbHelper.database;
+      final count = await db.update(
+        'feedback',
+        {'is_synced': 1},
+        where: 'feedback_id = ?',
+        whereArgs: [feedbackId],
+      );
+      return count > 0;
+    } catch (e) {
+      AppLogger.error('Failed to mark feedback as synced', 'FeedbackDao', e);
+      return false;
+    }
+  }
 }
 
 class AccuracyStats {

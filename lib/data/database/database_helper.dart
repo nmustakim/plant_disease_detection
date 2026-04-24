@@ -3,7 +3,6 @@ import 'package:path/path.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 
-
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._internal();
   static Database? _database;
@@ -133,16 +132,17 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-      CREATE TABLE feedback (
-        feedback_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-        prediction_id TEXT NOT NULL,
-        user_feedback TEXT CHECK (user_feedback IN ('Correct', 'Incorrect', 'Unsure')),
-        correct_disease_name TEXT,
-        comments TEXT,
-        timestamp INTEGER NOT NULL,
-        FOREIGN KEY (prediction_id) REFERENCES predictions(id) ON DELETE CASCADE
-      )
-    ''');
+  CREATE TABLE feedback (
+    feedback_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    prediction_id TEXT NOT NULL,
+    user_feedback TEXT CHECK (user_feedback IN ('Correct', 'Incorrect', 'Unsure')),
+    correct_disease_name TEXT,
+    comments TEXT,
+    timestamp INTEGER NOT NULL,
+    is_synced INTEGER DEFAULT 0,
+    FOREIGN KEY (prediction_id) REFERENCES predictions(id) ON DELETE CASCADE
+  )
+''');
 
     await db.execute('''
       CREATE INDEX idx_feedback_prediction_id ON feedback(prediction_id)
@@ -181,9 +181,12 @@ class DatabaseHelper {
       {
         'disease_id': 'early_blight_001',
         'disease_name': 'Early Blight',
-        'symptoms': 'Water-soaked spots on leaves with concentric rings (bullseye pattern). Lower leaves affected first.',
-        'cultural_control': 'Remove infected leaves, improve air circulation, avoid overhead irrigation, practice crop rotation.',
-        'chemical_control': 'Apply copper fungicide every 7 days starting from disease onset. Use chlorothalonil or mancozeb.',
+        'symptoms':
+            'Water-soaked spots on leaves with concentric rings (bullseye pattern). Lower leaves affected first.',
+        'cultural_control':
+            'Remove infected leaves, improve air circulation, avoid overhead irrigation, practice crop rotation.',
+        'chemical_control':
+            'Apply copper fungicide every 7 days starting from disease onset. Use chlorothalonil or mancozeb.',
         'biological_control': 'Use Bacillus subtilis-based bioagent.',
         'severity_level': 'High',
         'affected_crops': '["Tomato", "Potato"]',
@@ -191,9 +194,12 @@ class DatabaseHelper {
       {
         'disease_id': 'late_blight_001',
         'disease_name': 'Late Blight',
-        'symptoms': 'Grayish-green water-soaked lesions on leaves. White fungal growth on leaf undersides. Rapid spread in humid conditions.',
-        'cultural_control': 'Destroy infected plants immediately, ensure good drainage, avoid overhead watering.',
-        'chemical_control': 'Apply metalaxyl or mancozeb preventatively. Repeat every 5-7 days during wet weather.',
+        'symptoms':
+            'Grayish-green water-soaked lesions on leaves. White fungal growth on leaf undersides. Rapid spread in humid conditions.',
+        'cultural_control':
+            'Destroy infected plants immediately, ensure good drainage, avoid overhead watering.',
+        'chemical_control':
+            'Apply metalaxyl or mancozeb preventatively. Repeat every 5-7 days during wet weather.',
         'biological_control': 'Limited biological control options available.',
         'severity_level': 'High',
         'affected_crops': '["Tomato", "Potato"]',

@@ -28,7 +28,6 @@ enum UserFeedback {
   }
 }
 
-
 class Feedback {
   final int? feedbackId;
   final String predictionId;
@@ -36,6 +35,7 @@ class Feedback {
   final String? correctDiseaseName;
   final String? comments;
   final int timestamp;
+  final int isSynced;
 
   Feedback({
     this.feedbackId,
@@ -44,6 +44,7 @@ class Feedback {
     this.correctDiseaseName,
     this.comments,
     int? timestamp,
+    this.isSynced = 0,
   }) : timestamp = timestamp ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
   bool isUserCorrection() {
@@ -51,6 +52,8 @@ class Feedback {
         correctDiseaseName != null &&
         correctDiseaseName!.isNotEmpty;
   }
+
+  bool get needsSync => isSynced == 0;
 
   Map<String, dynamic> toMap() {
     return {
@@ -60,6 +63,7 @@ class Feedback {
       'correct_disease_name': correctDiseaseName,
       'comments': comments,
       'timestamp': timestamp,
+      'is_synced': isSynced,
     };
   }
 
@@ -71,11 +75,32 @@ class Feedback {
       correctDiseaseName: map['correct_disease_name'] as String?,
       comments: map['comments'] as String?,
       timestamp: map['timestamp'] as int,
+      isSynced: map['is_synced'] as int? ?? 0,
+    );
+  }
+
+  Feedback copyWith({
+    int? feedbackId,
+    String? predictionId,
+    UserFeedback? userFeedback,
+    String? correctDiseaseName,
+    String? comments,
+    int? timestamp,
+    int? isSynced,
+  }) {
+    return Feedback(
+      feedbackId: feedbackId ?? this.feedbackId,
+      predictionId: predictionId ?? this.predictionId,
+      userFeedback: userFeedback ?? this.userFeedback,
+      correctDiseaseName: correctDiseaseName ?? this.correctDiseaseName,
+      comments: comments ?? this.comments,
+      timestamp: timestamp ?? this.timestamp,
+      isSynced: isSynced ?? this.isSynced,
     );
   }
 
   @override
   String toString() {
-    return 'Feedback(predictionId: $predictionId, feedback: ${userFeedback.displayName})';
+    return 'Feedback(predictionId: $predictionId, feedback: ${userFeedback.displayName}, synced: $isSynced)';
   }
 }

@@ -5,7 +5,9 @@ import 'package:plant_dd_ai/screens/initial/splash_screen.dart';
 import 'package:plant_dd_ai/screens/result/result_screen.dart';
 import 'package:plant_dd_ai/screens/settings/settings_screen.dart';
 import 'package:plant_dd_ai/services/image/image_processor.dart';
+import 'package:plant_dd_ai/services/translation/translation_service.dart';
 import 'package:provider/provider.dart';
+import 'controllers/settings_controller.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/route_constants.dart';
 import 'providers/prediction_provider.dart';
@@ -19,6 +21,12 @@ import 'data/database/daos/error_logs_dao.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+
+
+  await TranslationService.instance.init();
+  final settingsController = SettingsController();
+  await settingsController.getLanguage();
 
   final databaseManager = DatabaseManager();
   final imageService = ImageService();
@@ -59,6 +67,8 @@ class PlantDDAI extends StatelessWidget {
     return MaterialApp(
       title: 'Plant DD AI',
       debugShowCheckedModeBanner: false,
+      locale: TranslationService.instance.currentLocale,
+      supportedLocales: TranslationService.supportedLocales,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,

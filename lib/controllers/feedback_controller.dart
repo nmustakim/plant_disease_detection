@@ -1,8 +1,24 @@
+import 'dart:async';
+
 import '../data/database/daos/feedback_dao.dart';
 import '../data/models/feedback.dart';
 import '../core/errors/error_handler.dart';
 import '../core/constants/error_codes.dart';
 import '../core/utils/logger.dart';
+import '../services/sync/firebase_sync_service.dart';
+
+
+class FeedbackResult {
+  final bool success;
+  final int? feedbackId;
+  final String? errorMessage;
+
+  FeedbackResult({
+    required this.success,
+    this.feedbackId,
+    this.errorMessage,
+  });
+}
 
 class FeedbackController {
   final FeedbackDao _feedbackDao;
@@ -35,6 +51,9 @@ class FeedbackController {
 
       final id = await _feedbackDao.submitFeedback(feedback);
 
+      await FirebaseSyncService.instance.initialize();
+      unawaited(FirebaseSyncService.instance.syncFeedback(feedback));
+
       AppLogger.info('Feedback submitted with id: $id', 'FeedbackController');
       return FeedbackResult(success: true, feedbackId: id);
     } catch (e, stackTrace) {
@@ -52,9 +71,37 @@ class FeedbackController {
     }
   }
 
+  Future<void> syncPendingFeedback() async {
+    try {
+      await FirebaseSyncService.instance.initialize();
+      if (!FirebaseSyncService.instance.isAvailable) return;
+
+      final unsyncedFeedback = await _feedbackDao.getUnsyncedFeedback();
+      await FirebaseSyncService.instance.syncPendingFeedback(unsyncedFeedback);
+
+      for (final feedback in unsyncedFeedback) {
+        await _feedbackDao.markAsSynced(feedback.feedbackId!);
+      }
+    } catch (e) {
+      AppLogger.error('Failed to sync pending feedback', 'FeedbackController', e);
+    }
+  }
+
   Future<AccuracyStats?> getAccuracyMetrics(String diseaseName) async {
     try {
-      return await _feedbackDao.getAccuracyMetrics(diseaseName);
+      final localStats = await _feedbackDao.getAccuracyMetrics(diseaseName);
+
+      await FirebaseSyncService.instance.initialize();
+      final cloudStats = await FirebaseSyncService.instance.getAggregatedStats(diseaseName);
+
+      return cloudStats != null
+          ? AccuracyStats(
+        total: (localStats.total) + (cloudStats['total'] as int? ?? 0),
+        correct: (localStats.correct) + (cloudStats['correct'] as int? ?? 0),
+        incorrect: (localStats.incorrect) + (cloudStats['incorrect'] as int? ?? 0),
+        unsure: (localStats.unsure) + (cloudStats['unsure'] as int? ?? 0),
+      )
+          : localStats;
     } catch (e) {
       AppLogger.error('Failed to get accuracy metrics', 'FeedbackController', e);
       return null;
@@ -69,16 +116,4 @@ class FeedbackController {
       return null;
     }
   }
-}
-
-class FeedbackResult {
-  final bool success;
-  final int? feedbackId;
-  final String? errorMessage;
-
-  FeedbackResult({
-    required this.success,
-    this.feedbackId,
-    this.errorMessage,
-  });
 }

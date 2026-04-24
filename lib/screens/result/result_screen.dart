@@ -4,6 +4,12 @@ import 'dart:io';
 import '../../core/theme/app_colors.dart';
 import '../../core/constants/route_constants.dart';
 import '../../providers/prediction_provider.dart';
+import '../../controllers/feedback_controller.dart';
+import '../../data/database/daos/feedback_dao.dart';
+import '../../data/models/feedback.dart';
+import '../../core/errors/error_handler.dart';
+import '../../data/database/daos/error_logs_dao.dart';
+import '../../services/translation/translation_service.dart';
 
 class ResultScreen extends StatefulWidget {
   const ResultScreen({super.key});
@@ -12,7 +18,8 @@ class ResultScreen extends StatefulWidget {
   State<ResultScreen> createState() => _ResultScreenState();
 }
 
-class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderStateMixin {
+class _ResultScreenState extends State<ResultScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -68,8 +75,10 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                 return const Center(child: Text('No prediction available'));
               }
 
-              final confidenceColor = AppColors.getConfidenceColor(prediction.confidence);
-              final confidenceLabel = AppColors.getConfidenceLabel(prediction.confidence);
+              final confidenceColor =
+              AppColors.getConfidenceColor(prediction.confidence);
+              final confidenceLabel =
+              AppColors.getConfidenceLabel(prediction.confidence);
 
               return CustomScrollView(
                 slivers: [
@@ -94,9 +103,9 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                         },
                       ),
                     ),
-                    title: const Text(
-                      'Detection Result',
-                      style: TextStyle(
+                    title: Text(
+                      'detection_result'.tr,
+                      style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.bold,
                       ),
@@ -121,17 +130,20 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                     tag: 'plant_image',
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius:
+                                        BorderRadius.circular(20),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.2),
+                                            color: Colors.black
+                                                .withValues(alpha: 0.2),
                                             blurRadius: 20,
                                             offset: const Offset(0, 10),
                                           ),
                                         ],
                                       ),
                                       child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(20),
+                                        borderRadius:
+                                        BorderRadius.circular(20),
                                         child: Image.file(
                                           File(imagePath),
                                           height: 300,
@@ -152,13 +164,16 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                       colors: [
-                                        AppColors.primary.withValues(alpha: 0.1),
-                                        AppColors.secondary.withValues(alpha: 0.05),
+                                        AppColors.primary
+                                            .withValues(alpha: 0.1),
+                                        AppColors.secondary
+                                            .withValues(alpha: 0.05),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: AppColors.primary.withValues(alpha: 0.2),
+                                      color: AppColors.primary
+                                          .withValues(alpha: 0.2),
                                     ),
                                   ),
                                   child: Column(
@@ -188,10 +203,12 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                 Container(
                                   padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
-                                    color: confidenceColor.withValues(alpha: 0.1),
+                                    color:
+                                    confidenceColor.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: confidenceColor.withValues(alpha: 0.3),
+                                      color: confidenceColor
+                                          .withValues(alpha: 0.3),
                                       width: 2,
                                     ),
                                   ),
@@ -200,11 +217,13 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                       Container(
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
-                                          color: confidenceColor.withValues(alpha: 0.2),
+                                          color: confidenceColor
+                                              .withValues(alpha: 0.2),
                                           shape: BoxShape.circle,
                                         ),
                                         child: Icon(
-                                          _getConfidenceIcon(prediction.confidence),
+                                          _getConfidenceIcon(
+                                              prediction.confidence),
                                           color: confidenceColor,
                                           size: 32,
                                         ),
@@ -212,10 +231,12 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                       const SizedBox(width: 16),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                           children: [
                                             Text(
-                                              prediction.getConfidencePercentage(),
+                                              prediction
+                                                  .getConfidencePercentage(),
                                               style: TextStyle(
                                                 fontSize: 28,
                                                 fontWeight: FontWeight.bold,
@@ -223,7 +244,7 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                               ),
                                             ),
                                             Text(
-                                              '$confidenceLabel Confidence',
+                                              '$confidenceLabel ${'confidence'.tr}',
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 color: confidenceColor,
@@ -243,11 +264,19 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                               child: SizedBox(
                                                 width: 60,
                                                 height: 60,
-                                                child: CircularProgressIndicator(
-                                                  value: prediction.confidence,
+                                                child:
+                                                CircularProgressIndicator(
+                                                  value:
+                                                  prediction.confidence,
                                                   strokeWidth: 6,
-                                                  backgroundColor: confidenceColor.withValues(alpha: 0.2),
-                                                  valueColor: AlwaysStoppedAnimation<Color>(confidenceColor),
+                                                  backgroundColor:
+                                                  confidenceColor
+                                                      .withValues(
+                                                      alpha: 0.2),
+                                                  valueColor:
+                                                  AlwaysStoppedAnimation<
+                                                      Color>(
+                                                      confidenceColor),
                                                 ),
                                               ),
                                             ),
@@ -263,28 +292,31 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                 if (diseaseInfo != null) ...[
                                   // Disease Details
                                   _buildExpandableSection(
-                                    title: 'Disease Details',
+                                    title: 'disease_details'.tr,
                                     icon: Icons.info_outline,
                                     color: Colors.blue,
                                     content: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                       children: [
                                         _buildDetailCard(
                                           icon: Icons.medical_services,
-                                          label: 'Symptoms',
+                                          label: 'symptoms'.tr,
                                           value: diseaseInfo.symptoms,
                                         ),
                                         const SizedBox(height: 12),
                                         _buildDetailCard(
                                           icon: Icons.warning_amber,
-                                          label: 'Severity',
-                                          value: diseaseInfo.severityLevel.displayName,
+                                          label: 'severity'.tr,
+                                          value: diseaseInfo.severityLevel
+                                              .displayName,
                                         ),
                                         const SizedBox(height: 12),
                                         _buildDetailCard(
                                           icon: Icons.grass,
-                                          label: 'Affected Crops',
-                                          value: diseaseInfo.affectedCrops.join(', '),
+                                          label: 'affected_crops'.tr,
+                                          value: diseaseInfo.affectedCrops
+                                              .join(', '),
                                         ),
                                       ],
                                     ),
@@ -294,34 +326,44 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
 
                                   // Treatment Options
                                   _buildExpandableSection(
-                                    title: 'Treatment Options',
+                                    title: 'treatment_options'.tr,
                                     icon: Icons.healing,
                                     color: Colors.green,
                                     content: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                       children: [
-                                        if (diseaseInfo.getTreatmentOptions().hasCulturalControl)
+                                        if (diseaseInfo
+                                            .getTreatmentOptions()
+                                            .hasCulturalControl)
                                           _buildTreatmentCard(
                                             icon: Icons.nature_people,
-                                            title: 'Cultural Control',
-                                            content: diseaseInfo.culturalControl!,
+                                            title: 'cultural_control'.tr,
+                                            content:
+                                            diseaseInfo.culturalControl!,
                                             color: Colors.brown,
                                           ),
-                                        if (diseaseInfo.getTreatmentOptions().hasChemicalControl) ...[
+                                        if (diseaseInfo
+                                            .getTreatmentOptions()
+                                            .hasChemicalControl) ...[
                                           const SizedBox(height: 12),
                                           _buildTreatmentCard(
                                             icon: Icons.science,
-                                            title: 'Chemical Control',
-                                            content: diseaseInfo.chemicalControl!,
+                                            title: 'chemical_control'.tr,
+                                            content:
+                                            diseaseInfo.chemicalControl!,
                                             color: Colors.orange,
                                           ),
                                         ],
-                                        if (diseaseInfo.getTreatmentOptions().hasBiologicalControl) ...[
+                                        if (diseaseInfo
+                                            .getTreatmentOptions()
+                                            .hasBiologicalControl) ...[
                                           const SizedBox(height: 12),
                                           _buildTreatmentCard(
                                             icon: Icons.eco,
-                                            title: 'Biological Control',
-                                            content: diseaseInfo.biologicalControl!,
+                                            title: 'biological_control'.tr,
+                                            content:
+                                            diseaseInfo.biologicalControl!,
                                             color: Colors.green,
                                           ),
                                         ],
@@ -330,7 +372,12 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                   ),
                                 ],
 
-                                const SizedBox(height: 32),
+                                const SizedBox(height: 16),
+
+                                // Feedback Section
+                                _buildFeedbackSection(context, prediction.id),
+
+                                const SizedBox(height: 16),
 
                                 // Action Buttons
                                 Row(
@@ -338,16 +385,24 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                     Expanded(
                                       child: OutlinedButton.icon(
                                         onPressed: () {
-                                          context.read<PredictionProvider>().reset();
-                                          Navigator.pushReplacementNamed(context, Routes.home);
+                                          context
+                                              .read<PredictionProvider>()
+                                              .reset();
+                                          Navigator.pushReplacementNamed(
+                                              context, Routes.home);
                                         },
                                         icon: const Icon(Icons.camera_alt),
-                                        label: const Text('Try Another'),
+                                        label: Text('try_another'.tr),
                                         style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
-                                          side: const BorderSide(color: AppColors.primary, width: 2),
+                                          padding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 16),
+                                          side: const BorderSide(
+                                              color: AppColors.primary,
+                                              width: 2),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                            BorderRadius.circular(12),
                                           ),
                                         ),
                                       ),
@@ -356,21 +411,44 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
                                     Expanded(
                                       child: ElevatedButton.icon(
                                         onPressed: () {
-                                          Navigator.pushNamed(context, Routes.history);
+                                          Navigator.pushNamed(
+                                              context, Routes.history);
                                         },
                                         icon: const Icon(Icons.history),
-                                        label: const Text('History'),
+                                        label: Text('history'.tr),
                                         style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          padding:
+                                          const EdgeInsets.symmetric(
+                                              vertical: 16),
                                           backgroundColor: AppColors.primary,
                                           foregroundColor: Colors.white,
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius:
+                                            BorderRadius.circular(12),
                                           ),
                                         ),
                                       ),
                                     ),
                                   ],
+                                ),
+
+                                const SizedBox(height: 20),
+
+                                // Disclaimer
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'disclaimer'.tr,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
                                 ),
 
                                 const SizedBox(height: 20),
@@ -526,6 +604,198 @@ class _ResultScreenState extends State<ResultScreen> with SingleTickerProviderSt
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFeedbackSection(BuildContext context, String predictionId) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.feedback_outlined, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'feedback_title'.tr,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildFeedbackButton(
+                context: context,
+                icon: Icons.thumb_up,
+                label: 'feedback_correct'.tr,
+                value: UserFeedback.correct,
+                predictionId: predictionId,
+              ),
+              const SizedBox(width: 12),
+              _buildFeedbackButton(
+                context: context,
+                icon: Icons.thumb_down,
+                label: 'feedback_incorrect'.tr,
+                value: UserFeedback.incorrect,
+                predictionId: predictionId,
+              ),
+              const SizedBox(width: 12),
+              _buildFeedbackButton(
+                context: context,
+                icon: Icons.help_outline,
+                label: 'feedback_unsure'.tr,
+                value: UserFeedback.unsure,
+                predictionId: predictionId,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedbackButton({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required UserFeedback value,
+    required String predictionId,
+  }) {
+    return Expanded(
+      child: OutlinedButton.icon(
+        onPressed: () => _showFeedbackDialog(context, predictionId, value),
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFeedbackDialog(
+      BuildContext context,
+      String predictionId,
+      UserFeedback userFeedback,
+      ) {
+    final TextEditingController diseaseController = TextEditingController();
+    final TextEditingController commentController = TextEditingController();
+
+    final feedbackController = FeedbackController(
+      feedbackDao: FeedbackDao(),
+      errorHandler: ErrorHandler(ErrorLogsDao()),
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                Icon(
+                  userFeedback == UserFeedback.correct
+                      ? Icons.thumb_up
+                      : userFeedback == UserFeedback.incorrect
+                      ? Icons.thumb_down
+                      : Icons.help_outline,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 8),
+                Text(userFeedback.displayName),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (userFeedback == UserFeedback.incorrect) ...[
+                    TextField(
+                      controller: diseaseController,
+                      decoration: InputDecoration(
+                        labelText: 'correct_disease_name'.tr,
+                        hintText: 'e.g., Tomato Early Blight',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  TextField(
+                    controller: commentController,
+                    decoration: InputDecoration(
+                      labelText: 'comments_optional'.tr,
+                      hintText: 'Your feedback helps us improve...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text('cancel'.tr),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(dialogContext);
+
+                  final result = await feedbackController.submitFeedback(
+                    predictionId: predictionId,
+                    userFeedback: userFeedback,
+                    correctDiseaseName: diseaseController.text.isNotEmpty
+                        ? diseaseController.text
+                        : null,
+                    comments: commentController.text.isNotEmpty
+                        ? commentController.text
+                        : null,
+                  );
+
+                  if (dialogContext.mounted) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          result.success
+                              ? 'Thank you for your feedback!'
+                              : result.errorMessage ??
+                              'Failed to submit feedback',
+                        ),
+                        backgroundColor:
+                        result.success ? Colors.green : Colors.red,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                },
+                child: Text('submit_feedback'.tr),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
