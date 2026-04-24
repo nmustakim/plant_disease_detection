@@ -1,10 +1,10 @@
 
 class ReferenceLink {
-  final int? linkId; // Auto-increment PK
-  final String diseaseId; // FK to disease_info
+  final int? linkId;
+  final String diseaseId;
   final String linkUrl;
   final String linkTitle;
-  final String source; // FAO, CIMMYT, USDA, etc.
+  final String source;
   final int createdAt;
 
   ReferenceLink({

@@ -14,7 +14,6 @@ class TranslationService {
   Map<String, String> _strings = {};
   String _currentLanguage = 'en';
 
-  // Available languages
   static const List<Locale> supportedLocales = [
     Locale('en', ''),
     Locale('bn', ''),
@@ -35,7 +34,6 @@ class TranslationService {
       final Map<String, dynamic> jsonMap = json.decode(jsonString);
       _strings = jsonMap.map((key, value) => MapEntry(key, value.toString()));
 
-      // Save to preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_localeKey, languageCode);
     } catch (e) {
@@ -59,7 +57,6 @@ class TranslationService {
   bool isEnglish() => _currentLanguage == 'en';
 }
 
-// Extension for easy translation
 extension StringTranslation on String {
   String get tr {
     return TranslationService.instance.translate(this);
