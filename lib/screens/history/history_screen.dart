@@ -12,7 +12,8 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProviderStateMixin {
+class _HistoryScreenState extends State<HistoryScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
 
@@ -24,12 +25,19 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HistoryProvider>().loadHistory();
+      final provider = context.read<HistoryProvider>();
+      provider.loadHistory();
+      Future.delayed(Duration(seconds: 1), () {
+        for (var p in provider.predictions) {
+          print('ID: ${p.id}, Disease Name: "${p.diseaseName}", Disease ID: ${p.diseaseId}');
+        }
+      });
       _controller.forward();
     });
   }
@@ -48,16 +56,12 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primary.withValues(alpha: 0.05),
-              Colors.white,
-            ],
+            colors: [AppColors.primary.withValues(alpha: 0.05), Colors.white],
           ),
         ),
         child: SafeArea(
           child: Column(
             children: [
-              // Custom Header
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -78,7 +82,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: AppColors.primary,
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
@@ -107,7 +114,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     ),
                     Consumer<HistoryProvider>(
                       builder: (context, provider, child) {
-                        if (provider.predictions.isEmpty) return const SizedBox.shrink();
+                        if (provider.predictions.isEmpty)
+                          return const SizedBox.shrink();
 
                         return Container(
                           decoration: BoxDecoration(
@@ -115,7 +123,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, color: Colors.red),
+                            icon: const Icon(
+                              Icons.more_vert,
+                              color: Colors.red,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -129,7 +140,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                 value: 'clear_all',
                                 child: Row(
                                   children: [
-                                    Icon(Icons.delete_forever, color: Colors.red),
+                                    Icon(
+                                      Icons.delete_forever,
+                                      color: Colors.red,
+                                    ),
                                     SizedBox(width: 12),
                                     Text('Clear All History'),
                                   ],
@@ -161,7 +175,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                               ),
                               child: const CircularProgressIndicator(
                                 strokeWidth: 3,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  AppColors.primary,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -198,7 +214,8 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                               ),
                               const SizedBox(height: 20),
                               Text(
-                                provider.errorMessage ?? 'Failed to load history',
+                                provider.errorMessage ??
+                                    'Failed to load history',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
                                   fontSize: 16,
@@ -240,13 +257,17 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                 Container(
                                   padding: const EdgeInsets.all(40),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.1),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.1,
+                                    ),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     Icons.history,
                                     size: 80,
-                                    color: AppColors.primary.withValues(alpha: 0.5),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 24),
@@ -285,7 +306,12 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           itemCount: provider.predictions.length,
                           itemBuilder: (context, index) {
                             final prediction = provider.predictions[index];
-                            return _buildPredictionCard(context, provider, prediction, index);
+                            return _buildPredictionCard(
+                              context,
+                              provider,
+                              prediction,
+                              index,
+                            );
                           },
                         ),
                       ),
@@ -301,23 +327,20 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Widget _buildPredictionCard(
-      BuildContext context,
-      HistoryProvider provider,
-      Prediction prediction,
-      int index,
-      ) {
+    BuildContext context,
+    HistoryProvider provider,
+    Prediction prediction,
+    int index,
+  ) {
     final confidenceColor = AppColors.getConfidenceColor(prediction.confidence);
-
+    debugPrint('Disease Name:${prediction.diseaseName}');
     return TweenAnimationBuilder<double>(
       duration: Duration(milliseconds: 300 + (index * 100)),
       tween: Tween(begin: 0.0, end: 1.0),
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 20 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value, child: child),
         );
       },
       child: Container(
@@ -343,14 +366,15 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [
-                  Colors.red.withValues(alpha: 0.1),
-                  Colors.red,
-                ],
+                colors: [Colors.red.withValues(alpha: 0.1), Colors.red],
               ),
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Icon(Icons.delete_forever, color: Colors.white, size: 32),
+            child: const Icon(
+              Icons.delete_forever,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
           confirmDismiss: (direction) async {
             return await _showDeleteDialog(context, provider, prediction);
@@ -364,7 +388,6 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    // Image
                     Hero(
                       tag: 'history_${prediction.id}',
                       child: Container(
@@ -398,7 +421,6 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
                     const SizedBox(width: 16),
 
-                    // Details
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -408,7 +430,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
+                              color: AppColors.textSecondary,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -492,10 +514,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Future<bool?> _showDeleteDialog(
-      BuildContext context,
-      HistoryProvider provider,
-      Prediction prediction,
-      ) {
+    BuildContext context,
+    HistoryProvider provider,
+    Prediction prediction,
+  ) {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

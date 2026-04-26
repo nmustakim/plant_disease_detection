@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import '../services/image/image_processor.dart';
 import '../services/image/image_service.dart';
 import '../ml/disease_classifier.dart';
@@ -23,10 +24,9 @@ class PredictionResult {
   });
 }
 
-
 class PredictionController {
   final ImageService imageService;
-  final ImagePreprocessor preprocessor;
+  final ImagePreprocessor preprocessor;   // returns Float32List
   final DiseaseClassifier mlModel;
   final DatabaseManager database;
   final ErrorHandler errorHandler;
@@ -39,105 +39,139 @@ class PredictionController {
     required this.errorHandler,
   });
 
+  // ---------------------------------------------------------------------------
+  // Public entry points
+  // ---------------------------------------------------------------------------
+
   Future<PredictionResult> captureAndClassify() async {
     try {
       AppLogger.info('Starting capture and classify workflow', 'PredictionController');
-
-      // Step 1-4: Capture image
       final imageFile = await imageService.captureImage();
-
-      // Continue with classification
       return await classifyImage(imageFile);
     } catch (e, stackTrace) {
       AppLogger.error('Capture and classify failed', 'PredictionController', e, stackTrace);
-      return PredictionResult(
-        prediction: _createErrorPrediction(),
-        success: false,
-        errorMessage: e.toString(),
-      );
+      return _errorResult(e.toString());
     }
   }
 
   Future<PredictionResult> uploadAndClassify() async {
     try {
       AppLogger.info('Starting upload and classify workflow', 'PredictionController');
-
-      // Select image from gallery
       final imageFile = await imageService.selectImage();
-
-      // Continue with classification
       return await classifyImage(imageFile);
     } catch (e, stackTrace) {
       AppLogger.error('Upload and classify failed', 'PredictionController', e, stackTrace);
-      return PredictionResult(
-        prediction: _createErrorPrediction(),
-        success: false,
-        errorMessage: e.toString(),
-      );
+      return _errorResult(e.toString());
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Core classification pipeline
+  // ---------------------------------------------------------------------------
 
   Future<PredictionResult> classifyImage(File imageFile) async {
     try {
-      final tensor = await preprocessor.preprocessImage(imageFile);
+      // 1. Preprocess → Float32List [224*224*3], normalised [0.0, 1.0]
+      final Float32List tensor = await preprocessor.preprocessImage(imageFile);
 
+      // 2. Ensure model is ready
       if (!mlModel.isModelLoaded()) {
         await mlModel.loadModel();
       }
 
-      final scores = await mlModel.runInference(tensor);
+      // 3. Run inference → List<double> confidence scores
+      final List<double> scores = await mlModel.runInference(tensor);
 
-      final classResult = mlModel.getTopPrediction(scores);
+      // 4. Pick top prediction
+      final ClassificationResult classResult = mlModel.getTopPrediction(scores);
 
+      AppLogger.info(
+        'Classification result: ${classResult.className} '
+            '(${(classResult.confidence * 100).toStringAsFixed(1)}%)',
+        'PredictionController',
+      );
+
+      // 5. Resolve disease metadata
       DiseaseInfo? diseaseInfo;
-      String diseaseId = 'unknown_001';
+      String diseaseId;
+      String diseaseName;
 
-      if (classResult.className != 'Unknown') {
+      if (classResult.className != 'Unknown' &&
+          classResult.confidence >= AppConstants.confidenceThreshold) {
         diseaseInfo = await database.getDiseaseInfo(classResult.className);
+
         if (diseaseInfo != null) {
-          diseaseId = diseaseInfo.diseaseId;
+          diseaseId   = diseaseInfo.diseaseId;
+          diseaseName = diseaseInfo.diseaseName;
+          AppLogger.info('Disease found in DB: $diseaseName', 'PredictionController');
+        } else {
+          // Fallback: derive readable name from class label
+          diseaseId = classResult.className
+              .toLowerCase()
+              .replaceAll('___', '_')
+              .replaceAll(' ', '_');
+          diseaseName = classResult.className
+              .replaceAll('___', ' - ')
+              .replaceAll('_', ' ');
+          AppLogger.info(
+            'Disease not in DB, using formatted name: $diseaseName',
+            'PredictionController',
+          );
         }
+      } else {
+        diseaseId   = 'unknown_001';
+        diseaseName = 'Unknown Disease';
+        AppLogger.info(
+          'Unknown / low-confidence result '
+              '(${(classResult.confidence * 100).toStringAsFixed(1)}%)',
+          'PredictionController',
+        );
       }
 
-      // Create prediction record
+      // 6. Persist prediction
       final prediction = Prediction(
-        diseaseId: diseaseId,
-        diseaseName: classResult.className,
-        confidence: classResult.confidence,
-        imagePath: imageFile.path,
+        diseaseId:    diseaseId,
+        diseaseName:  diseaseName,
+        confidence:   classResult.confidence,
+        imagePath:    imageFile.path,
         modelVersion: AppConstants.appVersion,
       );
 
-      // Step 9: Save to database
-      final savedPath = await imageService.saveImage(imageFile, prediction.id);
-      final updatedPrediction = prediction.copyWith(imagePath: savedPath);
-      await database.savePrediction(updatedPrediction);
+      final savedPath        = await imageService.saveImage(imageFile, prediction.id);
+      final savedPrediction  = prediction.copyWith(imagePath: savedPath);
+      await database.savePrediction(savedPrediction);
 
-      AppLogger.info('Prediction saved: ${prediction.id}', 'PredictionController');
+      AppLogger.info(
+        'Prediction saved: ${savedPrediction.id} — $diseaseName',
+        'PredictionController',
+      );
 
       return PredictionResult(
-        prediction: updatedPrediction,
+        prediction:  savedPrediction,
         diseaseInfo: diseaseInfo,
-        success: true,
+        success:     true,
       );
     } catch (e, stackTrace) {
       AppLogger.error('Classification failed', 'PredictionController', e, stackTrace);
-      return PredictionResult(
-        prediction: _createErrorPrediction(),
-        success: false,
-        errorMessage: e.toString(),
-      );
+      return _errorResult(e.toString());
     }
   }
 
-  Prediction _createErrorPrediction() {
-    return Prediction(
-      diseaseId: 'error_001',
-      diseaseName: 'Error',
-      confidence: 0.0,
-      imagePath: '',
-      modelVersion: AppConstants.appVersion,
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  PredictionResult _errorResult(String message) => PredictionResult(
+    prediction:   _createErrorPrediction(),
+    success:      false,
+    errorMessage: message,
+  );
+
+  Prediction _createErrorPrediction() => Prediction(
+    diseaseId:    'error_001',
+    diseaseName:  'Error',
+    confidence:   0.0,
+    imagePath:    '',
+    modelVersion: AppConstants.appVersion,
+  );
 }

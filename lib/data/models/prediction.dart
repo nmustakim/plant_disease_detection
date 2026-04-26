@@ -58,6 +58,7 @@ class Prediction {
     return {
       'id': id,
       'disease_id': diseaseId,
+      'disease_name': diseaseName,
       'confidence': confidence,
       'timestamp': timestamp,
       'image_path': imagePath,
@@ -68,10 +69,16 @@ class Prediction {
   }
 
   factory Prediction.fromMap(Map<String, dynamic> map) {
+
+    String diseaseName = map['disease_name'] as String? ?? '';
+    if (diseaseName.isEmpty) {
+      diseaseName = 'Unknown Disease';
+    }
+
     return Prediction(
       id: map['id'] as String,
       diseaseId: map['disease_id'] as String,
-      diseaseName: map['disease_name'] as String? ?? '',
+      diseaseName: diseaseName,
       confidence: map['confidence'] as double,
       timestamp: map['timestamp'] as int,
       imagePath: map['image_path'] as String,
@@ -101,6 +108,8 @@ class Prediction {
       deviceId: deviceId ?? this.deviceId,
     );
   }
+
+
 
   @override
   String toString() {

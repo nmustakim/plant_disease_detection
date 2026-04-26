@@ -1,6 +1,5 @@
-
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
 import '../core/constants/app_constants.dart';
@@ -8,8 +7,7 @@ import '../core/constants/error_codes.dart';
 import '../core/errors/app_exceptions.dart';
 import '../core/utils/logger.dart';
 
-/// Classification Result
-
+/// Holds the result of a single classification pass
 class ClassificationResult {
   final String className;
   final int classIndex;
@@ -36,8 +34,7 @@ class ClassificationResult {
       'ClassificationResult(class: $className, confidence: ${(confidence * 100).toStringAsFixed(1)}%)';
 }
 
-/// Disease Classifier (INT8 SAFE)
-
+/// TFLite float32 disease classifier
 class DiseaseClassifier {
   Interpreter? _interpreter;
 
@@ -51,7 +48,9 @@ class DiseaseClassifier {
     this.confidenceThreshold = AppConstants.confidenceThreshold,
   });
 
-  /// Load TFLite Model
+  // ---------------------------------------------------------------------------
+  // Load model
+  // ---------------------------------------------------------------------------
 
   Future<void> loadModel() async {
     try {
@@ -61,22 +60,32 @@ class DiseaseClassifier {
         ..threads = 4
         ..useNnApiForAndroid = false;
 
-      _interpreter = await Interpreter.fromAsset(
-        modelPath,
-        options: options,
+      _interpreter = await Interpreter.fromAsset(modelPath, options: options);
+
+      final inputTensor  = _interpreter!.getInputTensor(0);
+      final outputTensor = _interpreter!.getOutputTensor(0);
+
+      AppLogger.info(
+        'Class count: model=${outputTensor.shape[1]}, list=${classNames.length}',
+        'DiseaseClassifier',
       );
 
-      final input = _interpreter!.getInputTensor(0);
-      final output = _interpreter!.getOutputTensor(0);
+      // Warn loudly if counts don't match — don't hard-crash in production
+      if (outputTensor.shape[1] != classNames.length) {
+        AppLogger.warning(
+          'MISMATCH — model outputs ${outputTensor.shape[1]} classes '
+              'but classNames has ${classNames.length} entries. '
+              'Predictions beyond index ${classNames.length - 1} will be labelled Unknown.',
+          'DiseaseClassifier',
+        );
+      }
 
       AppLogger.info('Model loaded successfully', 'DiseaseClassifier');
-      AppLogger.info('Input  → ${input.shape} ${input.type}', 'DiseaseClassifier');
-      AppLogger.info('Output → ${output.shape} ${output.type}', 'DiseaseClassifier');
+      AppLogger.info('Input  → ${inputTensor.shape} ${inputTensor.type}',  'DiseaseClassifier');
+      AppLogger.info('Output → ${outputTensor.shape} ${outputTensor.type}', 'DiseaseClassifier');
     } catch (e, stack) {
       AppLogger.error('Model load failed', 'DiseaseClassifier', e);
-      if (kDebugMode) {
-        print(stack);
-      }
+      if (kDebugMode) print(stack);
       throw ModelException(
         ErrorCodes.errorMessages[ErrorCodes.modelLoadFailed]!,
         ErrorCodes.modelLoadFailed,
@@ -86,39 +95,24 @@ class DiseaseClassifier {
 
   bool isModelLoaded() => _interpreter != null;
 
+  // ---------------------------------------------------------------------------
+  // Inference
+  // ---------------------------------------------------------------------------
 
-  /// Image Preprocessing (UINT8)
-
-  Uint8List preprocessImage(img.Image image) {
-    final resized = img.copyResize(image, width: 224, height: 224);
-
-    final buffer = Uint8List(224 * 224 * 3);
-    int index = 0;
-
-    for (int y = 0; y < 224; y++) {
-      for (int x = 0; x < 224; x++) {
-        final pixel = resized.getPixel(x, y);
-        buffer[index++] = pixel.r.toInt();
-        buffer[index++] = pixel.g.toInt();
-        buffer[index++] = pixel.b.toInt();
-      }
-    }
-    return buffer;
-  }
-
-
-  /// Run Inference (INT8)
-
-  Future<List<double>> runInference(Uint8List inputBuffer) async {
+  /// Accepts a Float32List of shape [224 * 224 * 3] normalised to [0.0, 1.0].
+  /// Returns a list of confidence scores, one per class.
+  Future<List<double>> runInference(Float32List inputBuffer) async {
     if (!isModelLoaded()) {
       throw ModelException('Model not loaded', ErrorCodes.modelNotFound);
     }
 
     try {
+      // Reshape flat float32 buffer → [1, 224, 224, 3]
       final input = inputBuffer.reshape([1, 224, 224, 3]);
 
-      final outputTensor = _interpreter!.getOutputTensor(0);
-      final outputBuffer = Uint8List(outputTensor.shape[1]);
+      // Output buffer: shaped [1, numClasses] of doubles
+      final numClasses = _interpreter!.getOutputTensor(0).shape[1];
+      final outputBuffer = List.filled(1, List.filled(numClasses, 0.0));
 
       final start = DateTime.now();
       _interpreter!.run(input, outputBuffer);
@@ -126,16 +120,11 @@ class DiseaseClassifier {
 
       AppLogger.info('Inference time: ${time}ms', 'DiseaseClassifier');
 
-      /// Convert UINT8 → confidence (0–1)
-      return List<double>.generate(
-        outputBuffer.length,
-            (i) => outputBuffer[i] / 255.0,
-      );
+      // outputBuffer[0] is the flat scores list
+      return List<double>.from(outputBuffer[0]);
     } catch (e, stack) {
       AppLogger.error('Inference failed', 'DiseaseClassifier', e);
-      if (kDebugMode) {
-        print(stack);
-      }
+      if (kDebugMode) print(stack);
       throw ModelException(
         ErrorCodes.errorMessages[ErrorCodes.inferenceFailed]!,
         ErrorCodes.inferenceFailed,
@@ -143,8 +132,9 @@ class DiseaseClassifier {
     }
   }
 
-
-  /// Get Top Prediction
+  // ---------------------------------------------------------------------------
+  // Top prediction
+  // ---------------------------------------------------------------------------
 
   ClassificationResult getTopPrediction(List<double> scores) {
     double maxConfidence = 0.0;
@@ -178,8 +168,9 @@ class DiseaseClassifier {
     return result;
   }
 
-
-  /// Cleanup
+  // ---------------------------------------------------------------------------
+  // Cleanup
+  // ---------------------------------------------------------------------------
 
   void close() {
     _interpreter?.close();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:plant_dd_ai/providers/settings_provider.dart';
 import 'package:plant_dd_ai/screens/history/history_screen.dart';
 import 'package:plant_dd_ai/screens/home/home_screen.dart';
 import 'package:plant_dd_ai/screens/initial/splash_screen.dart';
@@ -52,6 +53,9 @@ void main() async {
         ),
         ChangeNotifierProvider(
           create: (_) => HistoryProvider(databaseManager),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => SettingsProvider(settingsController),
         ),
       ],
       child: const PlantDDAI(),

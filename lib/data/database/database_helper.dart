@@ -18,9 +18,7 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, AppConstants.databaseName);
-
     AppLogger.info('Initializing database at: $path', 'DatabaseHelper');
-
     return await openDatabase(
       path,
       version: AppConstants.databaseVersion,
@@ -29,7 +27,6 @@ class DatabaseHelper {
     );
   }
 
-  /// Create all tables (from Deliverable 2 Section 6)
   Future<void> _onCreate(Database db, int version) async {
     AppLogger.info('Creating database tables...', 'DatabaseHelper');
 
@@ -43,8 +40,8 @@ class DatabaseHelper {
         biological_control TEXT,
         severity_level TEXT NOT NULL CHECK (severity_level IN ('Low', 'Medium', 'High')),
         affected_crops TEXT NOT NULL,
-        created_at INTEGER NOT NULL DEFAULT ${DateTime.now().millisecondsSinceEpoch ~/ 1000},
-        updated_at INTEGER NOT NULL DEFAULT ${DateTime.now().millisecondsSinceEpoch ~/ 1000}
+        created_at INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -52,18 +49,17 @@ class DatabaseHelper {
       CREATE INDEX idx_disease_info_name ON disease_info(disease_name)
     ''');
 
-    // Table: predictions
     await db.execute('''
       CREATE TABLE predictions (
         id TEXT PRIMARY KEY NOT NULL UNIQUE,
         disease_id TEXT NOT NULL,
+        disease_name TEXT NOT NULL DEFAULT 'Unknown Disease',
         confidence REAL NOT NULL CHECK (confidence >= 0.0 AND confidence <= 1.0),
         timestamp INTEGER NOT NULL,
         image_path TEXT NOT NULL,
         model_version TEXT NOT NULL DEFAULT '1.0',
         device_id TEXT,
-        created_at INTEGER NOT NULL DEFAULT ${DateTime.now().millisecondsSinceEpoch ~/ 1000},
-        FOREIGN KEY (disease_id) REFERENCES disease_info(disease_id) ON DELETE RESTRICT ON UPDATE CASCADE
+        created_at INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -86,7 +82,7 @@ class DatabaseHelper {
         link_url TEXT NOT NULL,
         link_title TEXT NOT NULL,
         source TEXT NOT NULL,
-        created_at INTEGER NOT NULL DEFAULT ${DateTime.now().millisecondsSinceEpoch ~/ 1000},
+        created_at INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (disease_id) REFERENCES disease_info(disease_id) ON DELETE CASCADE ON UPDATE CASCADE
       )
     ''');
@@ -99,7 +95,7 @@ class DatabaseHelper {
       CREATE TABLE app_settings (
         setting_key TEXT PRIMARY KEY NOT NULL UNIQUE,
         setting_value TEXT NOT NULL,
-        updated_at INTEGER NOT NULL DEFAULT ${DateTime.now().millisecondsSinceEpoch ~/ 1000}
+        updated_at INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -132,17 +128,17 @@ class DatabaseHelper {
     ''');
 
     await db.execute('''
-  CREATE TABLE feedback (
-    feedback_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    prediction_id TEXT NOT NULL,
-    user_feedback TEXT CHECK (user_feedback IN ('Correct', 'Incorrect', 'Unsure')),
-    correct_disease_name TEXT,
-    comments TEXT,
-    timestamp INTEGER NOT NULL,
-    is_synced INTEGER DEFAULT 0,
-    FOREIGN KEY (prediction_id) REFERENCES predictions(id) ON DELETE CASCADE
-  )
-''');
+      CREATE TABLE feedback (
+        feedback_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        prediction_id TEXT NOT NULL,
+        user_feedback TEXT CHECK (user_feedback IN ('Correct', 'Incorrect', 'Unsure')),
+        correct_disease_name TEXT,
+        comments TEXT,
+        timestamp INTEGER NOT NULL,
+        is_synced INTEGER DEFAULT 0,
+        FOREIGN KEY (prediction_id) REFERENCES predictions(id) ON DELETE CASCADE
+      )
+    ''');
 
     await db.execute('''
       CREATE INDEX idx_feedback_prediction_id ON feedback(prediction_id)
@@ -153,19 +149,65 @@ class DatabaseHelper {
     ''');
 
     AppLogger.info('Database tables created successfully', 'DatabaseHelper');
-
     await _insertDefaultDiseaseData(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     AppLogger.info(
-      'Upgrading database from version $oldVersion to $newVersion',
+      'Upgrading database from $oldVersion to $newVersion',
       'DatabaseHelper',
     );
+
+    if (oldVersion < 2) {
+      // Add disease_name column to predictions
+      await db.execute('''
+        ALTER TABLE predictions ADD COLUMN disease_name TEXT NOT NULL DEFAULT 'Unknown Disease'
+      ''');
+
+      // Drop and recreate predictions to remove FK constraint
+      // SQLite cannot drop constraints — safest path is rename → recreate → copy → drop
+      await db.execute('''
+        CREATE TABLE predictions_new (
+          id TEXT PRIMARY KEY NOT NULL UNIQUE,
+          disease_id TEXT NOT NULL,
+          disease_name TEXT NOT NULL DEFAULT 'Unknown Disease',
+          confidence REAL NOT NULL CHECK (confidence >= 0.0 AND confidence <= 1.0),
+          timestamp INTEGER NOT NULL,
+          image_path TEXT NOT NULL,
+          model_version TEXT NOT NULL DEFAULT '1.0',
+          device_id TEXT,
+          created_at INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+
+      await db.execute('''
+        INSERT INTO predictions_new 
+          (id, disease_id, disease_name, confidence, timestamp, image_path, model_version, device_id, created_at)
+        SELECT 
+          id, disease_id, 'Unknown Disease', confidence, timestamp, image_path, model_version, device_id, created_at
+        FROM predictions
+      ''');
+
+      await db.execute('DROP TABLE predictions');
+      await db.execute('ALTER TABLE predictions_new RENAME TO predictions');
+
+      await db.execute('''
+        CREATE INDEX idx_predictions_timestamp ON predictions(timestamp DESC)
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_predictions_disease_id ON predictions(disease_id)
+      ''');
+      await db.execute('''
+        CREATE INDEX idx_predictions_device_id ON predictions(device_id)
+      ''');
+
+      AppLogger.info('Migration v1→v2 complete', 'DatabaseHelper');
+    }
   }
 
   Future<void> _insertDefaultDiseaseData(Database db) async {
     AppLogger.info('Inserting default disease data...', 'DatabaseHelper');
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
     final defaultDiseases = [
       {
@@ -177,32 +219,38 @@ class DatabaseHelper {
         'biological_control': null,
         'severity_level': 'Low',
         'affected_crops': '["Tomato", "Potato", "Pepper"]',
+        'created_at': now,
+        'updated_at': now,
       },
       {
         'disease_id': 'early_blight_001',
         'disease_name': 'Early Blight',
         'symptoms':
-            'Water-soaked spots on leaves with concentric rings (bullseye pattern). Lower leaves affected first.',
+        'Water-soaked spots on leaves with concentric rings (bullseye pattern). Lower leaves affected first.',
         'cultural_control':
-            'Remove infected leaves, improve air circulation, avoid overhead irrigation, practice crop rotation.',
+        'Remove infected leaves, improve air circulation, avoid overhead irrigation, practice crop rotation.',
         'chemical_control':
-            'Apply copper fungicide every 7 days starting from disease onset. Use chlorothalonil or mancozeb.',
+        'Apply copper fungicide every 7 days. Use chlorothalonil or mancozeb.',
         'biological_control': 'Use Bacillus subtilis-based bioagent.',
         'severity_level': 'High',
         'affected_crops': '["Tomato", "Potato"]',
+        'created_at': now,
+        'updated_at': now,
       },
       {
         'disease_id': 'late_blight_001',
         'disease_name': 'Late Blight',
         'symptoms':
-            'Grayish-green water-soaked lesions on leaves. White fungal growth on leaf undersides. Rapid spread in humid conditions.',
+        'Grayish-green water-soaked lesions on leaves. White fungal growth on leaf undersides.',
         'cultural_control':
-            'Destroy infected plants immediately, ensure good drainage, avoid overhead watering.',
+        'Destroy infected plants immediately, ensure good drainage, avoid overhead watering.',
         'chemical_control':
-            'Apply metalaxyl or mancozeb preventatively. Repeat every 5-7 days during wet weather.',
+        'Apply metalaxyl or mancozeb preventatively every 5-7 days during wet weather.',
         'biological_control': 'Limited biological control options available.',
         'severity_level': 'High',
         'affected_crops': '["Tomato", "Potato"]',
+        'created_at': now,
+        'updated_at': now,
       },
     ];
 
