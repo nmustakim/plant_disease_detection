@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "440462458056",
+    "project_id": "track-medic",
+    "storage_bucket": "track-medic.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440462458056:android:b6c4b9a8df3497cc96b9fd",
+        "android_client_info": {
+          "package_name": "com.example.track_medic"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXMSV8KVmMG4eVTqOeV4Ifp_siM5KXZdE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:440462458056:android:6823d228b569ed8996b9fd",
+        "android_client_info": {
+          "package_name": "com.nmustakim.plant_dd_ai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXMSV8KVmMG4eVTqOeV4Ifp_siM5KXZdE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
