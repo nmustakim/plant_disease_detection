@@ -329,7 +329,6 @@ class _ResultScreenState extends State<ResultScreen>
       ),
       child: Row(
         children: [
-          // Circular progress
           SizedBox(
             width: 68,
             height: 68,
@@ -338,6 +337,9 @@ class _ResultScreenState extends State<ResultScreen>
               children: [
                 CircularProgressIndicator(
                   value: prediction.confidence,
+                  constraints: BoxConstraints(
+                    minHeight: 80,minWidth: 80
+                  ),
                   strokeWidth: 6,
                   backgroundColor: confidenceColor.withValues(alpha: 0.15),
                   valueColor: AlwaysStoppedAnimation<Color>(confidenceColor),
