@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../data/database/database_manager.dart';
+import '../controllers/history_controller.dart';
 import '../data/models/prediction.dart';
 
 enum HistoryState {
@@ -9,15 +9,19 @@ enum HistoryState {
   error,
 }
 
-
+/// State management for prediction history.
+///
+/// Delegates all database operations to [HistoryController], keeping
+/// business logic out of the provider layer — matching the layered
+/// architecture defined in IT402 Deliverable 1, Section 3.4.
 class HistoryProvider extends ChangeNotifier {
-  final DatabaseManager _database;
+  final HistoryController _controller;
 
   HistoryState _state = HistoryState.idle;
   List<Prediction> _predictions = [];
   String? _errorMessage;
 
-  HistoryProvider(this._database);
+  HistoryProvider(this._controller);
 
   HistoryState get state => _state;
   List<Prediction> get predictions => _predictions;
@@ -31,7 +35,7 @@ class HistoryProvider extends ChangeNotifier {
       _setState(HistoryState.loading);
       _errorMessage = null;
 
-      _predictions = await _database.getAllPredictions();
+      _predictions = await _controller.getAllPredictions();
       _setState(HistoryState.loaded);
     } catch (e) {
       _errorMessage = e.toString();
@@ -41,7 +45,7 @@ class HistoryProvider extends ChangeNotifier {
 
   Future<bool> deletePrediction(String id) async {
     try {
-      final success = await _database.deletePrediction(id);
+      final success = await _controller.deletePrediction(id);
       if (success) {
         _predictions.removeWhere((p) => p.id == id);
         notifyListeners();
@@ -55,7 +59,7 @@ class HistoryProvider extends ChangeNotifier {
 
   Future<bool> deleteAllPredictions() async {
     try {
-      final success = await _database.deleteAllPredictions();
+      final success = await _controller.deleteAllPredictions();
       if (success) {
         _predictions.clear();
         notifyListeners();

@@ -5,31 +5,38 @@ import 'package:opencv_dart/opencv_dart.dart' as cv;
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/logger.dart';
 
-class ImagePreprocessor {
+abstract class PreprocessingStrategy {
+  /// Preprocesses [imageFile] and returns a normalised [Float32List] tensor
+  /// ready for model inference.
+  Future<Float32List> preprocess(File imageFile);
+}
+
+
+class MobileNetV2Preprocessor implements PreprocessingStrategy {
+  static const int TARGET_SIZE = AppConstants.modelInputSize; // 224
+
   final int size;
 
-  ImagePreprocessor({
-    this.size = AppConstants.modelInputSize,
-  });
+  MobileNetV2Preprocessor({this.size = TARGET_SIZE});
 
-  Future<Float32List> preprocessImage(File imageFile) async {
+  @override
+  Future<Float32List> preprocess(File imageFile) async {
     try {
       final bytes = await imageFile.readAsBytes();
 
-      final mat = cv.imdecode(bytes, cv.IMREAD_COLOR);
+      final mat     = cv.imdecode(bytes, cv.IMREAD_COLOR);
       final resized = cv.resize(mat, (size, size));
 
-      // Convert to RGB
       final rgb = cv.cvtColor(resized, cv.COLOR_BGR2RGB);
 
-      return _toFloat32(rgb);
+      return _imageToFloat32List(rgb);
     } catch (e) {
-      AppLogger.error("Preprocessing failed", "ImagePreprocessor", e);
+      AppLogger.error('Preprocessing failed', 'MobileNetV2Preprocessor', e);
       rethrow;
     }
   }
 
-  Float32List _toFloat32(cv.Mat mat) {
+  Float32List _imageToFloat32List(cv.Mat mat) {
     final w = mat.cols;
     final h = mat.rows;
 
@@ -44,8 +51,22 @@ class ImagePreprocessor {
         buffer[index++] = pixel.val[2] / 255.0;
       }
     }
+
     if (kDebugMode) {
-      print(buffer.take(10));
+      print('[MobileNetV2Preprocessor] First 10 values: ${buffer.take(10).toList()}');
     }
+
     return buffer;
-  }}
+  }
+}
+
+
+class ImagePreprocessor {
+  final PreprocessingStrategy strategy;
+
+  ImagePreprocessor({PreprocessingStrategy? strategy})
+      : strategy = strategy ?? MobileNetV2Preprocessor();
+
+  Future<Float32List> preprocessImage(File imageFile) =>
+      strategy.preprocess(imageFile);
+}

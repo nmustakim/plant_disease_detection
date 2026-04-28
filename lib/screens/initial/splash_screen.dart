@@ -70,7 +70,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         ),
         child: Stack(
           children: [
-            // Animated background circles
             Positioned(
               top: -100,
               right: -100,
@@ -112,12 +111,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               ),
             ),
 
-            // Main content
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Animated icon
                   AnimatedBuilder(
                     animation: _controller,
                     builder: (context, child) {

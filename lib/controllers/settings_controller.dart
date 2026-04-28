@@ -5,6 +5,22 @@ import '../core/constants/app_constants.dart';
 import '../core/utils/logger.dart';
 import '../services/file/file_manager.dart';
 import '../services/translation/translation_service.dart';
+import '../services/sync/firebase_sync_service.dart';
+
+/// Result of a model-update check.
+class ModelUpdateResult {
+  final bool updateAvailable;
+  final String? newVersion;
+  final String? downloadUrl;
+  final double? sizeMb;
+
+  ModelUpdateResult({
+    required this.updateAvailable,
+    this.newVersion,
+    this.downloadUrl,
+    this.sizeMb,
+  });
+}
 
 class SettingsController {
   final DatabaseHelper _dbHelper;
@@ -163,5 +179,65 @@ class SettingsController {
   Future<String> getLanguageDisplayName() async {
     final language = await getLanguage();
     return language == AppConstants.languageBengali ? 'বাংলা (Bengali)' : 'English';
+  }
+
+  /// Check Firebase for a newer model version.
+  /// Returns [ModelUpdateResult] describing whether an update is available.
+  Future<ModelUpdateResult> checkForModelUpdate() async {
+    try {
+      final sync = FirebaseSyncService.instance;
+      await sync.initialize();
+
+      if (!sync.isAvailable) {
+        AppLogger.warning('Firebase unavailable; skipping model update check', 'SettingsController');
+        return ModelUpdateResult(updateAvailable: false);
+      }
+
+      final remoteData = await sync.checkForModelUpdate();
+      if (remoteData == null) {
+        return ModelUpdateResult(updateAvailable: false);
+      }
+
+      final remoteVersion = remoteData['version'] as String?;
+      final localVersion = await getModelVersion();
+
+      if (remoteVersion == null || remoteVersion == localVersion) {
+        AppLogger.info('Model is up to date (v$localVersion)', 'SettingsController');
+        return ModelUpdateResult(updateAvailable: false);
+      }
+
+      AppLogger.info('Model update available: $localVersion → $remoteVersion', 'SettingsController');
+      return ModelUpdateResult(
+        updateAvailable: true,
+        newVersion: remoteVersion,
+        downloadUrl: remoteData['download_url'] as String?,
+        sizeMb: (remoteData['size_mb'] as num?)?.toDouble(),
+      );
+    } catch (e) {
+      AppLogger.error('checkForModelUpdate failed', 'SettingsController', e);
+      return ModelUpdateResult(updateAvailable: false);
+    }
+  }
+
+  /// Download the model at [downloadUrl], persist [newVersion], and return
+  /// the local file path so the caller can reload the interpreter.
+  Future<String?> downloadModelUpdate({
+    required String downloadUrl,
+    required String newVersion,
+  }) async {
+    try {
+      final sync = FirebaseSyncService.instance;
+      final localPath = await sync.downloadModel(downloadUrl, newVersion);
+
+      if (localPath != null) {
+        await setModelVersion(newVersion);
+        AppLogger.info('Model updated to v$newVersion at $localPath', 'SettingsController');
+      }
+
+      return localPath;
+    } catch (e) {
+      AppLogger.error('downloadModelUpdate failed', 'SettingsController', e);
+      return null;
+    }
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:plant_dd_ai/controllers/history_controller.dart';
 import 'package:plant_dd_ai/providers/settings_provider.dart';
 import 'package:plant_dd_ai/screens/history/history_screen.dart';
 import 'package:plant_dd_ai/screens/home/home_screen.dart';
@@ -23,8 +25,6 @@ import 'data/database/daos/error_logs_dao.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-
-
   await TranslationService.instance.init();
   final settingsController = SettingsController();
   await settingsController.getLanguage();
@@ -45,6 +45,8 @@ void main() async {
     errorHandler: errorHandler,
   );
 
+  final historyController = HistoryController(database: databaseManager);
+
   runApp(
     MultiProvider(
       providers: [
@@ -52,10 +54,11 @@ void main() async {
           create: (_) => PredictionProvider(predictionController),
         ),
         ChangeNotifierProvider(
-          create: (_) => HistoryProvider(databaseManager),
+          create: (_) => HistoryProvider(historyController),
         ),
         ChangeNotifierProvider(
-          create: (_) => SettingsProvider(settingsController),
+          create: (_) =>
+              SettingsProvider(settingsController, classifier: classifier),
         ),
       ],
       child: const PlantDDAI(),
@@ -72,7 +75,17 @@ class PlantDDAI extends StatelessWidget {
       title: 'Plant DD AI',
       debugShowCheckedModeBanner: false,
       locale: TranslationService.instance.currentLocale,
-      supportedLocales: TranslationService.supportedLocales,
+
+      supportedLocales: const [
+        Locale('en'),
+        Locale('bn'),
+      ],
+
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,

@@ -15,8 +15,8 @@ class TranslationService {
   String _currentLanguage = 'en';
 
   static const List<Locale> supportedLocales = [
-    Locale('en', ''),
-    Locale('bn', ''),
+    Locale('en', 'US'),
+    Locale('bn', 'BD'),
   ];
 
   Future<void> init() async {

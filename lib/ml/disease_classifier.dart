@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
 
@@ -48,9 +48,6 @@ class DiseaseClassifier {
     this.confidenceThreshold = AppConstants.confidenceThreshold,
   });
 
-  // ---------------------------------------------------------------------------
-  // Load model
-  // ---------------------------------------------------------------------------
 
   Future<void> loadModel() async {
     try {
@@ -95,6 +92,36 @@ class DiseaseClassifier {
 
   bool isModelLoaded() => _interpreter != null;
 
+  /// Reload the interpreter from a downloaded .tflite file path.
+  /// Called after a successful model update download.
+  Future<void> loadModelFromFile(String filePath) async {
+    try {
+      AppLogger.info('Loading model from file: $filePath', 'DiseaseClassifier');
+
+      final options = InterpreterOptions()
+        ..threads = 4
+        ..useNnApiForAndroid = false;
+
+      final newInterpreter = Interpreter.fromFile(
+        File(filePath),
+        options: options,
+      );
+
+      // Close old interpreter before replacing
+      _interpreter?.close();
+      _interpreter = newInterpreter;
+
+      AppLogger.info('Model reloaded from file successfully', 'DiseaseClassifier');
+    } catch (e, stack) {
+      AppLogger.error('Model reload from file failed', 'DiseaseClassifier', e);
+      if (kDebugMode) print(stack);
+      throw ModelException(
+        ErrorCodes.errorMessages[ErrorCodes.modelLoadFailed]!,
+        ErrorCodes.modelLoadFailed,
+      );
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Inference
   // ---------------------------------------------------------------------------
@@ -132,9 +159,6 @@ class DiseaseClassifier {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Top prediction
-  // ---------------------------------------------------------------------------
 
   ClassificationResult getTopPrediction(List<double> scores) {
     double maxConfidence = 0.0;
@@ -168,9 +192,6 @@ class DiseaseClassifier {
     return result;
   }
 
-  // ---------------------------------------------------------------------------
-  // Cleanup
-  // ---------------------------------------------------------------------------
 
   void close() {
     _interpreter?.close();

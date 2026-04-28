@@ -2,7 +2,7 @@ class AppConstants {
   static const String appName = 'Plant Disease Detector';
   static const String appVersion = '1.0.0';
 
-  static const String modelFileName = 'plant_disease_model.tflite';
+  static const String modelFileName = 'mobilenetv2.tflite';
   static const String modelAssetPath = 'assets/models/$modelFileName';
   static const int modelInputSize = 224;
   static const int modelChannels = 3;
@@ -12,7 +12,7 @@ class AppConstants {
   static const int maxImageSizeBytes = maxImageSizeMB * 1024 * 1024;
   static const List<String> supportedImageFormats = ['jpg', 'jpeg', 'png'];
 
-  static const int maxInferenceTimeSeconds = 3;
+  static const int maxInferenceTimeSeconds = 2;
   static const int maxInferenceTimeMillis = maxInferenceTimeSeconds * 1000;
 
   static const String databaseName = 'plant_disease.db';

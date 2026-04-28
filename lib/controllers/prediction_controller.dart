@@ -7,6 +7,8 @@ import '../data/database/database_manager.dart';
 import '../data/models/prediction.dart';
 import '../data/models/disease_info.dart';
 import '../core/errors/error_handler.dart';
+import '../core/errors/app_exceptions.dart';
+import '../core/constants/error_codes.dart';
 import '../core/utils/logger.dart';
 import '../core/constants/app_constants.dart';
 
@@ -26,7 +28,7 @@ class PredictionResult {
 
 class PredictionController {
   final ImageService imageService;
-  final ImagePreprocessor preprocessor;   // returns Float32List
+  final ImagePreprocessor preprocessor;
   final DiseaseClassifier mlModel;
   final DatabaseManager database;
   final ErrorHandler errorHandler;
@@ -38,10 +40,6 @@ class PredictionController {
     required this.database,
     required this.errorHandler,
   });
-
-  // ---------------------------------------------------------------------------
-  // Public entry points
-  // ---------------------------------------------------------------------------
 
   Future<PredictionResult> captureAndClassify() async {
     try {
@@ -65,16 +63,12 @@ class PredictionController {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Core classification pipeline
-  // ---------------------------------------------------------------------------
-
   Future<PredictionResult> classifyImage(File imageFile) async {
     try {
       // 1. Preprocess → Float32List [224*224*3], normalised [0.0, 1.0]
       final Float32List tensor = await preprocessor.preprocessImage(imageFile);
 
-      // 2. Ensure model is ready
+      // 2. Ensure model is ready — loadModel() is void and throws on failure
       if (!mlModel.isModelLoaded()) {
         await mlModel.loadModel();
       }
@@ -137,8 +131,8 @@ class PredictionController {
         modelVersion: AppConstants.appVersion,
       );
 
-      final savedPath        = await imageService.saveImage(imageFile, prediction.id);
-      final savedPrediction  = prediction.copyWith(imagePath: savedPath);
+      final savedPath       = await imageService.saveImage(imageFile, prediction.id);
+      final savedPrediction = prediction.copyWith(imagePath: savedPath);
       await database.savePrediction(savedPrediction);
 
       AppLogger.info(
@@ -156,10 +150,6 @@ class PredictionController {
       return _errorResult(e.toString());
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
 
   PredictionResult _errorResult(String message) => PredictionResult(
     prediction:   _createErrorPrediction(),

@@ -40,7 +40,29 @@ class SettingsScreen extends StatelessWidget {
                 leading: const Icon(Icons.model_training),
                 title: Text('model_version'.tr),
                 subtitle: Text(provider.modelVersion),
+                trailing: _buildModelUpdateTrailing(context, provider),
+                onTap: provider.modelUpdateState == ModelUpdateState.checking ||
+                    provider.modelUpdateState == ModelUpdateState.downloading
+                    ? null
+                    : () => provider.checkForModelUpdate(),
               ),
+              if (provider.modelUpdateState == ModelUpdateState.upToDate)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    'Model is up to date.',
+                    style: TextStyle(fontSize: 12, color: Colors.green.shade700),
+                  ),
+                ),
+              if (provider.modelUpdateState == ModelUpdateState.error &&
+                  provider.modelUpdateError != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text(
+                    provider.modelUpdateError!,
+                    style: const TextStyle(fontSize: 12, color: Colors.red),
+                  ),
+                ),
 
               const Divider(),
 
@@ -151,6 +173,42 @@ class SettingsScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Widget _buildModelUpdateTrailing(BuildContext context, SettingsProvider provider) {
+    switch (provider.modelUpdateState) {
+      case ModelUpdateState.checking:
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      case ModelUpdateState.downloading:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Downloading...',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ],
+        );
+      case ModelUpdateState.upToDate:
+        return const Icon(Icons.check_circle, color: Colors.green, size: 20);
+      case ModelUpdateState.error:
+        return const Icon(Icons.error_outline, color: Colors.red, size: 20);
+      default:
+        return TextButton(
+          onPressed: () => provider.checkForModelUpdate(),
+          child: const Text('Check for Updates'),
+        );
+    }
   }
 
   void _showLanguageDialog(BuildContext context, SettingsProvider provider) {
