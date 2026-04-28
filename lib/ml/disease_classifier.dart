@@ -122,9 +122,6 @@ class DiseaseClassifier {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Inference
-  // ---------------------------------------------------------------------------
 
   /// Accepts a Float32List of shape [224 * 224 * 3] normalised to [0.0, 1.0].
   /// Returns a list of confidence scores, one per class.

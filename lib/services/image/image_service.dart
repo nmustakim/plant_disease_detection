@@ -22,7 +22,6 @@ class ImageService {
 
   Future<File> captureImage() async {
     try {
-      // Request permission
       await permissionManager.requestCameraPermission();
 
       AppLogger.info('Opening camera...', 'ImageService');

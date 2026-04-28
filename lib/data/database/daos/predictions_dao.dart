@@ -6,7 +6,6 @@ import '../../../core/utils/logger.dart';
 class PredictionsDao {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
 
-  // Base query — single source of truth
   static const String _baseQuery = '''
     SELECT 
       p.*,
