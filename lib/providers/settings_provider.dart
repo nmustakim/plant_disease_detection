@@ -18,30 +18,29 @@ enum ModelUpdateState {
 class SettingsProvider extends ChangeNotifier {
   final SettingsController _controller;
   final DiseaseClassifier _classifier;
-
+  final TranslationService _translationService;
 
   SettingsLoadState _loadState = SettingsLoadState.idle;
   String? _errorMessage;
-
 
   String _language = AppConstants.languageEnglish;
   String _modelVersion = AppConstants.appVersion;
   double _confidenceThreshold = AppConstants.confidenceThreshold;
   int _lastSync = 0;
 
-
   bool _isClearingCache = false;
-
 
   ModelUpdateState _modelUpdateState = ModelUpdateState.idle;
   String? _pendingUpdateVersion;
   String? _modelUpdateError;
 
-
   SettingsProvider(
       this._controller, {
         DiseaseClassifier? classifier,
-      }) : _classifier = classifier ?? DiseaseClassifier();
+        TranslationService? translationService,
+      })  : _classifier = classifier ?? DiseaseClassifier(),
+        _translationService =
+            translationService ?? TranslationService.instance;
 
 
   SettingsLoadState get loadState => _loadState;
@@ -61,6 +60,7 @@ class SettingsProvider extends ChangeNotifier {
 
   String get languageDisplayName =>
       _language == AppConstants.languageBengali ? 'বাংলা (Bengali)' : 'English';
+
 
   Future<void> loadSettings() async {
     if (_loadState == SettingsLoadState.loading) return;
@@ -91,7 +91,7 @@ class SettingsProvider extends ChangeNotifier {
     final success = await _controller.setLanguage(code);
     if (success) {
       _language = code;
-
+      await _translationService.loadLanguage(code);
       notifyListeners();
     }
     return success;

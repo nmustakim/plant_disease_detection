@@ -72,13 +72,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilds whenever the language bundle changes so every .tr call
+    // immediately reflects the new language without a restart.
+    context.watch<TranslationService>();
+
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
       body: Stack(
         children: [
           _buildBackground(size),
-
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
@@ -161,12 +164,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── Background ────────────────────────────────────────────────────────────
+
   Widget _buildBackground(Size size) {
     return Container(
       decoration: const BoxDecoration(color: AppColors.background),
       child: Stack(
         children: [
-          // Top blob
           Positioned(
             top: -60,
             right: -80,
@@ -184,7 +188,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          // Bottom blob
           Positioned(
             bottom: 100,
             left: -60,
@@ -207,6 +210,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── App bar ───────────────────────────────────────────────────────────────
+
   Widget _buildAppBar(BuildContext context) {
     return SliverAppBar(
       floating: true,
@@ -223,7 +228,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               gradient: AppColors.primaryGradient,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.eco_rounded, color: Colors.white, size: 20),
+            child:
+            const Icon(Icons.eco_rounded, color: Colors.white, size: 20),
           ),
           const SizedBox(width: 10),
           Text(
@@ -247,10 +253,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── Hero section ──────────────────────────────────────────────────────────
+
   Widget _buildHeroSection() {
     return Column(
       children: [
-        // Floating icon with rings
         SizedBox(
           width: 200,
           height: 200,
@@ -359,6 +366,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── Scan button ───────────────────────────────────────────────────────────
+
   Widget _buildScanButton(BuildContext context, PredictionProvider provider) {
     return GestureDetector(
       onTap: provider.isLoading ? null : () => _scanLeaf(context, provider),
@@ -368,19 +377,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           gradient: provider.isLoading
               ? const LinearGradient(
-                  colors: [Color(0xFFB0BEC5), Color(0xFF90A4AE)],
-                )
+            colors: [Color(0xFFB0BEC5), Color(0xFF90A4AE)],
+          )
               : AppColors.freshGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: provider.isLoading
               ? []
               : [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.4),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
+            BoxShadow(
+              color: AppColors.primary.withValues(alpha: 0.4),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -415,6 +424,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+
+  // ── Secondary cards ───────────────────────────────────────────────────────
 
   Widget _buildSecondaryCard({
     required BuildContext context,
@@ -464,6 +475,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
+
+  // ── How it works ──────────────────────────────────────────────────────────
 
   Widget _buildHowItWorksCard() {
     final steps = [
@@ -578,10 +591,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  // ── Actions ───────────────────────────────────────────────────────────────
+
   Future<void> _scanLeaf(
-    BuildContext context,
-    PredictionProvider provider,
-  ) async {
+      BuildContext context,
+      PredictionProvider provider,
+      ) async {
     await provider.captureAndClassify();
     if (!mounted) return;
     if (provider.hasResult && context.mounted) {
@@ -592,9 +607,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _uploadImage(
-    BuildContext context,
-    PredictionProvider provider,
-  ) async {
+      BuildContext context,
+      PredictionProvider provider,
+      ) async {
     await provider.uploadAndClassify();
     if (!mounted) return;
     if (provider.hasResult && context.mounted) {
@@ -617,12 +632,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         backgroundColor: AppColors.error,
         duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
       ),
     );
   }
 }
+
+// ── Action button widget ──────────────────────────────────────────────────────
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;

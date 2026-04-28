@@ -10,6 +10,8 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<TranslationService>();
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -64,8 +66,7 @@ class SettingsScreen extends StatelessWidget {
                           title: 'confidence_threshold'.tr,
                           subtitle:
                           '${(provider.confidenceThreshold * 100).toInt()}%',
-                          onTap: () =>
-                              _showThresholdDialog(context, provider),
+                          onTap: () => _showThresholdDialog(context, provider),
                         ),
                       ]),
 
@@ -139,6 +140,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+
   Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
@@ -176,6 +178,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+
   Widget _buildSectionLabel(String label) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8, left: 4),
@@ -212,8 +215,7 @@ class SettingsScreen extends StatelessWidget {
     required String subtitle,
   }) {
     return ListTile(
-      contentPadding:
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: _iconBox(icon, AppColors.textSecondary),
       title: Text(title,
           style: const TextStyle(
@@ -221,8 +223,8 @@ class SettingsScreen extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary)),
       subtitle: Text(subtitle,
-          style: const TextStyle(
-              fontSize: 13, color: AppColors.textSecondary)),
+          style:
+          const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
     );
   }
 
@@ -234,8 +236,7 @@ class SettingsScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      contentPadding:
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: _iconBox(icon, iconColor),
       title: Text(title,
           style: const TextStyle(
@@ -255,8 +256,7 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildModelTile(BuildContext context, SettingsProvider provider) {
     return ListTile(
-      contentPadding:
-      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: _iconBox(Icons.model_training_rounded, AppColors.success),
       title: Text('model_version'.tr,
           style: const TextStyle(
@@ -264,8 +264,8 @@ class SettingsScreen extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary)),
       subtitle: Text(provider.modelVersion,
-          style: const TextStyle(
-              fontSize: 13, color: AppColors.textSecondary)),
+          style:
+          const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
       trailing: _buildModelUpdateTrailing(provider),
       onTap: provider.modelUpdateState == ModelUpdateState.checking ||
           provider.modelUpdateState == ModelUpdateState.downloading
@@ -284,8 +284,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(
               width: 18,
               height: 18,
-              child:
-              CircularProgressIndicator(strokeWidth: 2.5),
+              child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
             if (provider.modelUpdateState == ModelUpdateState.downloading) ...[
               const SizedBox(width: 6),
@@ -360,6 +359,7 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
+
   void _showLanguageDialog(BuildContext context, SettingsProvider provider) {
     String selected = provider.language;
 
@@ -387,8 +387,16 @@ class SettingsScreen extends StatelessWidget {
               onPressed: () async {
                 Navigator.pop(dialogCtx);
                 final success = await provider.setLanguage(selected);
-                if (success && ctx.mounted) {
-                  _showRestartDialog(ctx);
+                if (success && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('language_changed'.tr),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.all(16),
+                    ),
+                  );
                 }
               },
               child: Text('confirm'.tr),
@@ -403,8 +411,7 @@ class SettingsScreen extends StatelessWidget {
       ValueChanged<String?> onChanged) {
     return RadioListTile<String>(
       title: Text(label,
-          style:
-          const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
       value: value,
       groupValue: groupValue,
       activeColor: AppColors.primary,
@@ -461,7 +468,13 @@ class SettingsScreen extends StatelessWidget {
                 if (dialogCtx.mounted) {
                   Navigator.pop(dialogCtx);
                   ScaffoldMessenger.of(dialogCtx).showSnackBar(
-                    SnackBar(content: Text('threshold_updated'.tr)),
+                    SnackBar(
+                      content: Text('threshold_updated'.tr),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      margin: const EdgeInsets.all(16),
+                    ),
                   );
                 }
               },
@@ -493,6 +506,10 @@ class SettingsScreen extends StatelessWidget {
                       success ? 'cache_cleared'.tr : 'cache_clear_failed'.tr),
                   backgroundColor:
                   success ? AppColors.success : AppColors.error,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  margin: const EdgeInsets.all(16),
                 ));
               }
             },
@@ -501,21 +518,6 @@ class SettingsScreen extends StatelessWidget {
                 foregroundColor: Colors.white),
             child: Text('clear'.tr),
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showRestartDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('language'.tr),
-        content: Text('language_restart_hint'.tr),
-        actions: [
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text('ok'.tr)),
         ],
       ),
     );
