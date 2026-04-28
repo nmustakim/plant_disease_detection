@@ -159,13 +159,11 @@ class DatabaseHelper {
     );
 
     if (oldVersion < 2) {
-      // Add disease_name column to predictions
       await db.execute('''
         ALTER TABLE predictions ADD COLUMN disease_name TEXT NOT NULL DEFAULT 'Unknown Disease'
       ''');
 
-      // Drop and recreate predictions to remove FK constraint
-      // SQLite cannot drop constraints — safest path is rename → recreate → copy → drop
+
       await db.execute('''
         CREATE TABLE predictions_new (
           id TEXT PRIMARY KEY NOT NULL UNIQUE,

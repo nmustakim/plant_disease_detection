@@ -1,4 +1,3 @@
-
 class Routes {
   static const String splash = '/';
   static const String home = '/home';
@@ -7,4 +6,5 @@ class Routes {
   static const String history = '/history';
   static const String settings = '/settings';
   static const String diseaseDetails = '/disease-details';
+  static const String helpAndFaq = '/help_and_faq';
 }

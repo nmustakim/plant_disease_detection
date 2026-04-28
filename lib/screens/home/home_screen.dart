@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/route_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/prediction_provider.dart';
+import '../../services/translation/translation_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,326 +14,401 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late AnimationController _pulseController;
+  late AnimationController _floatController;
+  late AnimationController _entryController;
+
   late Animation<double> _pulseAnimation;
+  late Animation<double> _floatAnimation;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
+
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2800),
       vsync: this,
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+    _floatController = AnimationController(
+      duration: const Duration(milliseconds: 3500),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _entryController = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    )..forward();
+
+    _pulseAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+
+    _floatAnimation = Tween<double>(begin: -8, end: 8).animate(
+      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _entryController,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeOut),
+      ),
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero).animate(
+          CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
+        );
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _floatController.dispose();
+    _entryController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primary.withValues(alpha: 0.05),
-              Colors.white,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              // Custom App Bar
-              SliverAppBar(
-                expandedHeight: 120,
-                floating: false,
-                pinned: true,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.primary,
-                          AppColors.primaryDark,
-                        ],
-                      ),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.eco, color: Colors.white, size: 32),
-                              const SizedBox(width: 12),
-                              const Text(
-                                'Plant DD AI',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                actions: [
-                  Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.settings, color: Colors.white),
-                      onPressed: () {
-                        Navigator.pushNamed(context, Routes.settings);
-                      },
-                    ),
-                  ),
-                ],
-              ),
+      body: Stack(
+        children: [
+          _buildBackground(size),
 
-              // Content
-              SliverList(
-                delegate: SliverChildListDelegate([
-                  Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: 20),
-
-                        // Hero Section with animated icon
-                        Center(
-                          child: AnimatedBuilder(
-                            animation: _pulseAnimation,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: _pulseAnimation.value,
-                                child: Container(
-                                  padding: const EdgeInsets.all(40),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [
-                                        AppColors.primary.withValues(alpha: 0.2),
-                                        AppColors.secondary.withValues(alpha: 0.1),
-                                      ],
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.primary.withValues(alpha: 0.3),
-                                        blurRadius: 30,
-                                        spreadRadius: 5,
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: SlideTransition(
+                position: _slideAnimation,
+                child: CustomScrollView(
+                  slivers: [
+                    _buildAppBar(context),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 28),
+                            _buildHeroSection(),
+                            const SizedBox(height: 36),
+                            Consumer<PredictionProvider>(
+                              builder: (context, provider, _) => Column(
+                                children: [
+                                  _buildScanButton(context, provider),
+                                  const SizedBox(height: 14),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: _buildSecondaryCard(
+                                          context: context,
+                                          provider: provider,
+                                          icon: Icons.photo_library_rounded,
+                                          label: 'gallery'.tr,
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF2979FF),
+                                              Color(0xFF1565C0),
+                                            ],
+                                          ),
+                                          onTap: () =>
+                                              _uploadImage(context, provider),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: _buildSecondaryCard(
+                                          context: context,
+                                          provider: provider,
+                                          icon: Icons.history_rounded,
+                                          label: 'history'.tr,
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF7B2FBE),
+                                              Color(0xFF5A1F8A),
+                                            ],
+                                          ),
+                                          onTap: () => Navigator.pushNamed(
+                                            context,
+                                            Routes.history,
+                                          ),
+                                          isLoading: false,
+                                        ),
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
-                                    Icons.eco,
-                                    size: 100,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+                            _buildHowItWorksCard(),
+                            const SizedBox(height: 32),
+                          ],
                         ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        const SizedBox(height: 32),
+  Widget _buildBackground(Size size) {
+    return Container(
+      decoration: const BoxDecoration(color: AppColors.background),
+      child: Stack(
+        children: [
+          // Top blob
+          Positioned(
+            top: -60,
+            right: -80,
+            child: Container(
+              width: 280,
+              height: 280,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.12),
+                    AppColors.primary.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Bottom blob
+          Positioned(
+            bottom: 100,
+            left: -60,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.secondary.withValues(alpha: 0.1),
+                    AppColors.secondary.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                        const Text(
-                          'Detect Plant Diseases',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
+  Widget _buildAppBar(BuildContext context) {
+    return SliverAppBar(
+      floating: true,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      toolbarHeight: 64,
+      title: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: AppColors.primaryGradient,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.eco_rounded, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'app_name'.tr,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              letterSpacing: -0.3,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        _ActionButton(
+          icon: Icons.settings_rounded,
+          onTap: () => Navigator.pushNamed(context, Routes.settings),
+        ),
+        const SizedBox(width: 12),
+      ],
+    );
+  }
 
-                        const SizedBox(height: 12),
-
-                        Text(
-                          'Take a photo or upload an image to identify plant diseases instantly with AI',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: AppColors.textSecondary,
-                            height: 1.5,
-                          ),
-                        ),
-
-                        const SizedBox(height: 48),
-
-                        // Action Cards
-                        Consumer<PredictionProvider>(
-                          builder: (context, provider, child) {
-                            return Column(
-                              children: [
-                                // Primary Action - Scan Leaf
-                                _buildPrimaryActionCard(
-                                  context,
-                                  provider,
-                                  icon: Icons.camera_alt,
-                                  title: provider.isLoading ? 'Processing...' : 'Scan Leaf',
-                                  subtitle: 'Capture image with camera',
-                                  onTap: () => _scanLeaf(context, provider),
-                                  isLoading: provider.isLoading,
-                                ),
-
-                                const SizedBox(height: 16),
-
-                                // Secondary Actions Row
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildSecondaryActionCard(
-                                        context,
-                                        provider,
-                                        icon: Icons.photo_library,
-                                        title: 'Gallery',
-                                        onTap: () => _uploadImage(context, provider),
-                                        isLoading: provider.isLoading,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: _buildSecondaryActionCard(
-                                        context,
-                                        provider,
-                                        icon: Icons.history,
-                                        title: 'History',
-                                        onTap: () {
-                                          Navigator.pushNamed(context, Routes.history);
-                                        },
-                                        isLoading: false,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // Info Cards
-                        _buildInfoSection(),
-                      ],
+  Widget _buildHeroSection() {
+    return Column(
+      children: [
+        // Floating icon with rings
+        SizedBox(
+          width: 200,
+          height: 200,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer ring pulse
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (_, __) => Transform.scale(
+                  scale: _pulseAnimation.value,
+                  child: Container(
+                    width: 190,
+                    height: 190,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        width: 1.5,
+                      ),
                     ),
                   ),
-                ]),
+                ),
+              ),
+              // Mid ring
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (_, __) => Transform.scale(
+                  scale: 1.15 - (_pulseAnimation.value - 0.92) * 0.3,
+                  child: Container(
+                    width: 152,
+                    height: 152,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ),
+              ),
+              // Floating icon container
+              AnimatedBuilder(
+                animation: _floatAnimation,
+                builder: (_, child) => Transform.translate(
+                  offset: Offset(0, _floatAnimation.value),
+                  child: child,
+                ),
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.freshGradient,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.35),
+                        blurRadius: 30,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 12),
+                      ),
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.15),
+                        blurRadius: 60,
+                        spreadRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.eco_rounded,
+                    size: 52,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ),
         ),
-      ),
+
+        const SizedBox(height: 20),
+
+        Text(
+          'detect_plant_diseases'.tr,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
+            color: AppColors.textPrimary,
+            height: 1.1,
+            letterSpacing: -0.5,
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        Text(
+          'take_photo_or_upload'.tr,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 15,
+            color: AppColors.textSecondary,
+            height: 1.55,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPrimaryActionCard(
-      BuildContext context,
-      PredictionProvider provider, {
-        required IconData icon,
-        required String title,
-        required String subtitle,
-        required VoidCallback onTap,
-        required bool isLoading,
-      }) {
-    return InkWell(
-      onTap: isLoading ? null : onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(24),
+  Widget _buildScanButton(BuildContext context, PredictionProvider provider) {
+    return GestureDetector(
+      onTap: provider.isLoading ? null : () => _scanLeaf(context, provider),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 64,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isLoading
-                ? [Colors.grey.shade300, Colors.grey.shade400]
-                : [AppColors.primary, AppColors.primaryDark],
-          ),
+          gradient: provider.isLoading
+              ? const LinearGradient(
+                  colors: [Color(0xFFB0BEC5), Color(0xFF90A4AE)],
+                )
+              : AppColors.freshGradient,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: isLoading
-                  ? Colors.grey.withValues(alpha: 0.3)
-                  : AppColors.primary.withValues(alpha: 0.4),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          boxShadow: provider.isLoading
+              ? []
+              : [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: isLoading
-                  ? const SizedBox(
-                width: 32,
-                height: 32,
+            if (provider.isLoading)
+              const SizedBox(
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(
-                  strokeWidth: 3,
+                  strokeWidth: 2.5,
                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               )
-                  : Icon(icon, size: 32, color: Colors.white),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                ],
+            else
+              const Icon(
+                Icons.document_scanner_rounded,
+                color: Colors.white,
+                size: 24,
               ),
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.white.withValues(alpha: 0.8),
-              size: 20,
+            const SizedBox(width: 12),
+            Text(
+              provider.isLoading ? 'processing'.tr : 'scan_leaf'.tr,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 0.2,
+              ),
             ),
           ],
         ),
@@ -340,47 +416,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSecondaryActionCard(
-      BuildContext context,
-      PredictionProvider provider, {
-        required IconData icon,
-        required String title,
-        required VoidCallback onTap,
-        required bool isLoading,
-      }) {
-    return InkWell(
-      onTap: isLoading ? null : onTap,
-      borderRadius: BorderRadius.circular(16),
+  Widget _buildSecondaryCard({
+    required BuildContext context,
+    required PredictionProvider provider,
+    required IconData icon,
+    required String label,
+    required LinearGradient gradient,
+    required VoidCallback onTap,
+    bool? isLoading,
+  }) {
+    final loading = isLoading ?? provider.isLoading;
+    return GestureDetector(
+      onTap: loading ? null : onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        height: 78,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.divider),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              blurRadius: 10,
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 32, color: AppColors.primary),
+            ShaderMask(
+              shaderCallback: (bounds) => gradient.createShader(bounds),
+              blendMode: BlendMode.srcIn,
+              child: Icon(icon, size: 28),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Text(
-              title,
+              label,
               style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
@@ -390,59 +465,112 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildHowItWorksCard() {
+    final steps = [
+      (Icons.camera_alt_rounded, 'capture_or_upload'.tr),
+      (Icons.analytics_rounded, 'ai_analyzes'.tr),
+      (Icons.check_circle_rounded, 'instant_diagnosis'.tr),
+    ];
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.info_outline, color: AppColors.primary, size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'How it works',
-                style: TextStyle(
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMuted,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Icon(
+                  Icons.info_outline_rounded,
+                  color: AppColors.primary,
+                  size: 16,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'how_it_works'.tr,
+                style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildInfoItem(Icons.camera_alt, 'Capture or upload plant leaf image'),
-          const SizedBox(height: 12),
-          _buildInfoItem(Icons.analytics, 'AI analyzes for disease detection'),
-          const SizedBox(height: 12),
-          _buildInfoItem(Icons.check_circle, 'Get instant diagnosis & treatment'),
+          ...steps.asMap().entries.map((e) {
+            final isLast = e.key == steps.length - 1;
+            return _buildStep(e.key + 1, e.value.$1, e.value.$2, isLast);
+          }),
         ],
       ),
     );
   }
 
-  Widget _buildInfoItem(IconData icon, String text) {
+  Widget _buildStep(int number, IconData icon, String text, bool isLast) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 16, color: AppColors.primary),
+        Column(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$number',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 24,
+                margin: const EdgeInsets.symmetric(vertical: 3),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.4),
+                      AppColors.primary.withValues(alpha: 0.1),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 14,
-              color: AppColors.textSecondary,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -450,45 +578,78 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Future<void> _scanLeaf(BuildContext context, PredictionProvider provider) async {
+  Future<void> _scanLeaf(
+    BuildContext context,
+    PredictionProvider provider,
+  ) async {
     await provider.captureAndClassify();
-
+    if (!mounted) return;
     if (provider.hasResult && context.mounted) {
       Navigator.pushNamed(context, Routes.result);
     } else if (provider.hasError && context.mounted) {
-      _showErrorDialog(context, provider.errorMessage ?? 'Failed to scan leaf');
+      _showErrorSnackBar(context, provider.errorMessage ?? 'error'.tr);
     }
   }
 
-  Future<void> _uploadImage(BuildContext context, PredictionProvider provider) async {
+  Future<void> _uploadImage(
+    BuildContext context,
+    PredictionProvider provider,
+  ) async {
     await provider.uploadAndClassify();
-
+    if (!mounted) return;
     if (provider.hasResult && context.mounted) {
       Navigator.pushNamed(context, Routes.result);
     } else if (provider.hasError && context.mounted) {
-      _showErrorDialog(context, provider.errorMessage ?? 'Failed to upload image');
+      _showErrorSnackBar(context, provider.errorMessage ?? 'error'.tr);
     }
   }
 
-  void _showErrorDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
+  void _showErrorSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
           children: [
-            Icon(Icons.error_outline, color: AppColors.error),
-            const SizedBox(width: 8),
-            const Text('Error'),
+            const Icon(Icons.error_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
           ],
         ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+        backgroundColor: AppColors.error,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ActionButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: AppColors.textSecondary, size: 20),
       ),
     );
   }
