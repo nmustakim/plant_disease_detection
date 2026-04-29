@@ -2,25 +2,11 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:plant_dd_ai/controllers/prediction_controller.dart';
-import 'package:plant_dd_ai/data/database/database_manager.dart';
 import 'package:plant_dd_ai/data/models/prediction.dart';
 import 'package:plant_dd_ai/ml/disease_classifier.dart';
-import 'package:plant_dd_ai/services/image/image_processor.dart';
-import 'package:plant_dd_ai/services/image/image_service.dart';
-import 'package:plant_dd_ai/core/errors/error_handler.dart';
 import 'package:plant_dd_ai/core/errors/app_exceptions.dart';
 import 'package:plant_dd_ai/core/constants/error_codes.dart';
-
-// Run: dart run build_runner build
-@GenerateNiceMocks([
-  MockSpec<DatabaseManager>(),
-  MockSpec<DiseaseClassifier>(),
-  MockSpec<ImagePreprocessor>(),
-  MockSpec<ImageService>(),
-  MockSpec<ErrorHandler>(),
-])
 import 'prediction_controller_test.mocks.dart';
 
 void main() {

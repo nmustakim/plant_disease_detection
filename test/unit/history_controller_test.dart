@@ -1,14 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:plant_dd_ai/controllers/history_controller.dart';
-import 'package:plant_dd_ai/data/database/database_manager.dart';
 import 'package:plant_dd_ai/data/models/prediction.dart';
-
-// Run: dart run build_runner build
-// to generate history_controller_test.mocks.dart
-@GenerateNiceMocks([MockSpec<DatabaseManager>()])
-import 'history_controller_test.mocks.dart';
+import 'prediction_controller_test.mocks.dart';
 
 void main() {
   late MockDatabaseManager mockDb;
