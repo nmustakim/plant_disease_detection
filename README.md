@@ -248,7 +248,7 @@ app_settings     — user preferences & config
 
 > This application was trained on the PlantVillage dataset, which consists of laboratory-grade images captured under controlled conditions. Real-world performance may vary due to lighting, background complexity, and image quality differences. **Predictions should be treated as a diagnostic aid, not a definitive diagnosis.** Always consult a qualified agronomist or agricultural extension officer before applying chemical treatments.
 >
-> The developers and International Open University are not liable for crop losses arising from reliance on app predictions alone.
+> The developer is not liable for crop losses arising from reliance on app predictions alone.
 
 
 ---
